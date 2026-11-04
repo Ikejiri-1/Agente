@@ -1,0 +1,477 @@
+/* ============ Site público: rede neural luminosa ============
+   Uma fonte de luz (a esfera, azul elétrico) e um acento (ouro). Vidro com borda mais clara que o centro
+   (Fresnel), brilho somado, rede neural viva atrás de tudo, hologramas projetados de plataformas,
+   três planos de profundidade e grão no fim. */
+html:has(.nx-root) { background: #010720; scroll-behavior: smooth; }
+body:has(.nx-root) { background: transparent; color: #eaf8ff; }
+
+.nx-root {
+  --c: #5fd3ff;
+  --ouro: #f3c76a;
+  --ink: #eaf8ff;
+  --mute: #a9c4da;
+  --linha: rgba(140, 215, 255, 0.28);
+  --h: 95, 211, 255; /* cor da projeção holográfica (r, g, b); o plano em destaque usa dourado */
+  position: relative;
+  min-height: 100vh;
+  overflow-x: clip;
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+.nx-root :focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+/* plano mais profundo: a rede viva (z-index negativo: atrás do conteúdo, sem criar camadas isoladas) */
+.nx-rede { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+/* véu de acabamento: vinheta e grão de filme por cima de tudo */
+.nx-veu {
+  position: fixed; inset: 0; z-index: 3; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 4, 20, 0.5) 100%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay; opacity: 0.55;
+}
+
+/* ---------- navegação (vidro) ---------- */
+.nx-nav {
+  position: sticky; top: 10px; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  width: min(1120px, calc(100% - 24px)); margin: 10px auto 0; padding: 8px 10px 8px 20px;
+  border-radius: 999px; border: 1px solid var(--linha);
+  background: linear-gradient(180deg, rgba(40, 110, 255, 0.16), rgba(4, 16, 60, 0.62));
+  -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 10px 40px rgba(0, 8, 40, 0.5), 0 0 30px rgba(30, 100, 255, 0.14);
+}
+.nx-nav nav { display: flex; align-items: center; gap: 6px; }
+.nx-logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; font-size: 14px; color: var(--ink); text-decoration: none; }
+.nx-logo-orbe {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #ffd98a 28%, #2a7bff 62%, #0a2a7a);
+  box-shadow: 0 0 14px 3px rgba(95, 211, 255, 0.7), 0 0 28px rgba(255, 196, 92, 0.35);
+  animation: nx-pulsa 3.2s ease-in-out infinite;
+}
+.nx-link { padding: 9px 14px; border-radius: 999px; background: none; border: 0; color: var(--ink); font-size: 14.5px; text-decoration: none; opacity: 0.9; transition: background 0.2s, color 0.2s; }
+.nx-link:hover { color: #fff; background: rgba(95, 211, 255, 0.14); }
+
+/* ---------- botões (vidro com neon) ---------- */
+.nx-btn {
+  display: inline-flex; align-items: center; justify-content: center; padding: 12px 26px; border-radius: 999px;
+  border: 1px solid rgba(140, 215, 255, 0.5); color: var(--ink); font: inherit; font-size: 15px; font-weight: 700; text-decoration: none; cursor: pointer;
+  background: linear-gradient(180deg, rgba(60, 140, 255, 0.22), rgba(6, 24, 80, 0.6));
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 20px rgba(60, 160, 255, 0.2);
+  transition: box-shadow 0.25s, transform 0.25s, background 0.25s;
+}
+.nx-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 34px rgba(95, 211, 255, 0.55); }
+.nx-btn-solid { color: #02101f; border-color: transparent; background: linear-gradient(135deg, #1b8bff, #5fd3ff 60%, #b6ecff); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 26px rgba(60, 170, 255, 0.5); }
+.nx-btn-pequeno { padding: 9px 18px; font-size: 14px; }
+.nx-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* ---------- topo ---------- */
+.nx-hero { text-align: center; padding: clamp(36px, 7vh, 72px) 20px 0; }
+.nx-selo {
+  display: inline-block; margin: 0 0 18px; padding: 7px 16px; border-radius: 999px; border: 1px solid var(--linha);
+  font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--c);
+  background: rgba(10, 40, 110, 0.4); box-shadow: 0 0 22px rgba(60, 160, 255, 0.22);
+}
+.nx-hero h1 { margin: 0; font-size: clamp(30px, 5vw, 62px); line-height: 1.08; font-weight: 800; text-shadow: 0 0 40px rgba(60, 150, 255, 0.45); }
+.nx-hero h1 span {
+  display: block; background: linear-gradient(90deg, #5fd3ff, #a99bff 40%, #f3c76a 70%, #5fd3ff); background-size: 220% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; animation: nx-brilho 9s ease-in-out infinite alternate;
+}
+.nx-sub { max-width: 640px; margin: 16px auto 0; color: var(--mute); font-size: clamp(15px, 1.5vw, 18px); line-height: 1.55; }
+.nx-hero-cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 26px; }
+
+/* ---------- cena do agente (iframe transparente: herda o fundo e a rede da página) ---------- */
+.nx-cena {
+  position: relative;
+  width: min(100%, max(960px, calc((100vh - 120px) * 1.875)), 1500px);
+  aspect-ratio: 1200 / 640;
+  margin: 8px auto 0;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 6%, #000 92%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 6%, #000 92%, transparent);
+}
+.nx-cena iframe { display: block; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: normal; }
+/* origem da rede: a base da esfera (centro 312, raio 120, de 640 no palco da cena; no celular 253 + 88 de 704) */
+.nx-ancora { position: absolute; left: 50%; top: 67.5%; width: 40px; height: 40px; transform: translate(-50%, -50%); pointer-events: none; }
+
+/* ---------- seções ---------- */
+.nx-secao { padding: clamp(72px, 11vh, 120px) 16px 0; }
+.nx-cab { display: flex; flex-direction: column; align-items: center; text-align: center; margin: 0 auto 56px; max-width: 760px; }
+.nx-cab .nx-kicker { padding-left: 0.3em; margin: 38px 0 10px; font-size: 12.5px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--c); text-shadow: 0 0 12px rgba(1, 7, 32, 0.95); }
+.nx-cab-simples .nx-kicker { margin-top: 0; }
+.nx-cab h2 { margin: 0; font-size: clamp(26px, 3.6vw, 44px); line-height: 1.15; font-weight: 800; text-shadow: 0 0 22px rgba(1, 7, 32, 0.95), 0 0 8px rgba(1, 7, 32, 0.9), 0 0 40px rgba(60, 150, 255, 0.35); }
+.nx-cab .nx-sub { margin-top: 12px; text-shadow: 0 0 14px rgba(1, 7, 32, 0.95), 0 0 4px rgba(1, 7, 32, 0.9); }
+
+/* ---------- bolha de vidro (a mesma da cena) com a elipse de plataforma ---------- */
+.nx-orbe {
+  --d: 64px; position: relative; isolation: isolate; flex: none;
+  display: grid; place-items: center; width: var(--d); height: var(--d); border-radius: 50%; color: #f4fbff;
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 30%),
+    radial-gradient(circle at 50% 56%, rgba(70, 150, 255, 0.62) 0, rgba(14, 52, 160, 0.9) 66%, rgba(150, 225, 255, 0.82) 94%, rgba(150, 225, 255, 0) 100%);
+  box-shadow: 0 0 0 1px rgba(160, 228, 255, 0.35), 0 0 24px rgba(60, 160, 255, 0.55), 0 0 60px rgba(30, 100, 255, 0.35), inset 0 0 14px rgba(150, 225, 255, 0.35);
+}
+.nx-orbe svg { width: 46%; height: 46%; filter: drop-shadow(0 0 5px rgba(150, 220, 255, 0.95)) drop-shadow(0 0 14px rgba(60, 160, 255, 0.7)); }
+.nx-orbe::before, .nx-orbe::after {
+  content: ""; position: absolute; left: 50%; top: 84%; z-index: -1; transform: translateX(-50%);
+  width: 165%; height: 46%; border-radius: 50%; border: 1.5px solid rgba(95, 211, 255, 0.5);
+  box-shadow: 0 0 14px rgba(95, 211, 255, 0.4), inset 0 0 14px rgba(60, 160, 255, 0.25);
+  background: radial-gradient(ellipse, rgba(40, 120, 255, 0.22), rgba(40, 120, 255, 0) 70%);
+}
+.nx-orbe::after { width: 205%; height: 60%; top: 76%; border-color: rgba(95, 211, 255, 0.22); background: none; }
+/* ponto de saída visível: uma conta de luz onde a rede deixa o cartão (nunca nasce do vazio) */
+.nx-saida { position: absolute; left: 50%; bottom: -11px; width: 22px; height: 22px; margin-left: -11px; pointer-events: none; }
+.nx-saida::after {
+  content: ""; position: absolute; inset: 6px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #9fe3ff 45%, #2a7bff 100%);
+  box-shadow: 0 0 10px 2px rgba(95, 211, 255, 0.9), 0 0 24px rgba(60, 160, 255, 0.6);
+}
+.nx-passos .nx-saida::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1px; height: 26px; background: linear-gradient(to top, rgba(95, 211, 255, 0.8), transparent); }
+
+/* ---------- cartão de vidro ---------- */
+.nx-vidro {
+  position: relative; border-radius: 26px; text-align: center;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(50, 130, 255, 0.2), rgba(6, 24, 80, 0.62) 55%, rgba(2, 10, 44, 0.8));
+  border: 1px solid var(--linha);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 0 40px rgba(60, 150, 255, 0.1), 0 18px 50px rgba(0, 8, 40, 0.55), 0 0 40px rgba(30, 100, 255, 0.12);
+  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+}
+.nx-vidro::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(260px circle at var(--mx, -999px) var(--my, -999px), rgba(160, 228, 255, 0.16), transparent 60%); }
+.nx-vidro:hover { transform: translateY(-4px); border-color: rgba(160, 228, 255, 0.5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 0 40px rgba(60, 150, 255, 0.16), 0 22px 60px rgba(0, 8, 40, 0.6), 0 0 56px rgba(60, 160, 255, 0.3); }
+.nx-vidro > .nx-orbe { position: absolute; left: 50%; top: 0; transform: translate(-50%, -50%); }
+.nx-vidro h3 { margin: 0; font-size: 18px; font-weight: 800; line-height: 1.25; }
+
+.nx-grade { display: grid; gap: 64px 28px; max-width: 1180px; margin: 0 auto; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.nx-grade-3 { max-width: 1060px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); }
+.nx-grade-planos { max-width: 1120px; gap: 72px 36px; }
+
+.nx-funcao { position: relative; padding: 46px 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.nx-curto { margin: 0; color: var(--mute); font-size: 14.5px; line-height: 1.5; }
+.nx-lista { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 7px; text-align: left; width: 100%; font-size: 13.5px; color: #cfe3f3; }
+.nx-lista li { position: relative; padding-left: 20px; line-height: 1.4; }
+.nx-lista li::before { content: ""; position: absolute; left: 3px; top: 0.5em; width: 7px; height: 7px; border-radius: 50%; background: radial-gradient(circle, #fff, var(--c) 60%, transparent 70%); box-shadow: 0 0 8px var(--c); }
+.nx-chip { padding: 3px 10px; border-radius: 999px; font-size: 11px; letter-spacing: 0.04em; color: var(--mute); border: 1px solid rgba(169, 196, 218, 0.4); }
+.nx-chip-on { color: #b8f0ff; border-color: rgba(95, 211, 255, 0.7); background: rgba(40, 140, 255, 0.16); box-shadow: 0 0 12px rgba(95, 211, 255, 0.3); }
+
+/* ---------- passos: uma cachoeira da rede cai sobre cada bolha ---------- */
+.nx-passos { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px 36px; max-width: 1080px; margin: 0 auto; padding: 0 0 8px; text-align: center; }
+.nx-passos li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-bottom: 20px; }
+.nx-passos .nx-orbe { margin-bottom: 26px; }
+.nx-numero { padding-left: 0.3em; font-size: 12px; letter-spacing: 0.3em; color: var(--ouro); text-shadow: 0 0 12px rgba(243, 199, 106, 0.6); }
+.nx-passos strong { font-size: 18px; text-shadow: 0 0 14px rgba(1, 7, 32, 0.9); }
+.nx-passos p { margin: 0; max-width: 220px; color: var(--mute); font-size: 14px; line-height: 1.5; text-shadow: 0 0 12px rgba(1, 7, 32, 0.95), 0 0 4px rgba(1, 7, 32, 0.9); }
+
+/* ---------- esferas de vidro (shader): o canvas é maior que a esfera, para caber o halo e os anéis ---------- */
+.nx-shader { position: absolute; left: 50%; top: 50%; z-index: 0; width: calc(var(--d) * 1.69); height: calc(var(--d) * 1.69); translate: -50% -50%; pointer-events: none; }
+.nx-orbe > svg { position: relative; z-index: 1; }
+/* com o shader pronto o desenho antigo em CSS sai (ele continua de reserva se o WebGL falhar) */
+.nx-orbe:has(> .nx-shader.pronto), .nx-esfera:has(> .nx-shader.pronto) { background: none; box-shadow: none; }
+.nx-esfera:has(> .nx-shader.pronto) > .nx-esfera-rede { display: none; }
+
+/* ---------- esfera (o núcleo) ---------- */
+.nx-esfera {
+  --d: 190px; position: relative; isolation: isolate; display: grid; place-items: center; width: var(--d); height: var(--d); border-radius: 50%; flex: none;
+  background:
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 30%),
+    radial-gradient(circle, rgba(60, 140, 255, 0.82) 0, rgba(24, 84, 215, 0.85) 62%, rgba(120, 205, 255, 0.9) 92%, rgba(200, 244, 255, 0.98) 98%, rgba(150, 225, 255, 0) 100%);
+  box-shadow: 0 0 70px rgba(60, 150, 255, 0.6), 0 0 140px rgba(30, 100, 255, 0.35), inset 0 0 50px rgba(160, 230, 255, 0.3);
+}
+.nx-esfera-rede {
+  position: absolute; inset: 3%; border-radius: 50%; z-index: -1;
+  background:
+    radial-gradient(circle, #fff 0 1px, transparent 1.6px) 0 0 / 15px 15px,
+    radial-gradient(circle, rgba(255, 196, 92, 0.95) 0 1.4px, transparent 2px) 7px 9px / 31px 27px,
+    repeating-conic-gradient(from 0deg, rgba(220, 244, 255, 0.28) 0 0.5deg, transparent 0.5deg 15deg),
+    repeating-radial-gradient(circle, rgba(140, 215, 255, 0.3) 0 1px, transparent 1px 16px);
+  -webkit-mask-image: radial-gradient(circle, #000 55%, transparent 74%); mask-image: radial-gradient(circle, #000 55%, transparent 74%);
+  animation: nx-gira 60s linear infinite;
+}
+.nx-esfera-texto { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 12%; text-shadow: 0 0 16px rgba(10, 60, 200, 0.95), 0 0 4px rgba(0, 10, 50, 0.9); }
+.nx-esfera-texto strong { font-size: calc(var(--d) * 0.115); line-height: 1.1; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+.nx-esfera-texto span { margin-top: 6px; font-size: calc(var(--d) * 0.056); line-height: 1.3; color: #e6f3ff; }
+
+/* ---------- holograma: painel HUD, feixe de luz e plataforma ---------- */
+.nx-hud {
+  position: relative; border-radius: 10px;
+  background: linear-gradient(180deg, rgba(var(--h), 0.14), rgba(2, 10, 44, 0.72) 62%), rgba(2, 10, 44, 0.3);
+  border: 1px solid rgba(var(--h), 0.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3);
+  box-shadow: 0 0 44px rgba(var(--h), 0.2), inset 0 0 40px rgba(var(--h), 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+/* linhas de varredura, brilho que segue o ponteiro e uma faixa de luz que desce */
+.nx-hud::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background:
+    radial-gradient(260px circle at var(--mx, -999px) var(--my, -999px), rgba(var(--h), 0.2), transparent 60%),
+    linear-gradient(to bottom, transparent, rgba(var(--h), 0.16), transparent) 0 -50% / 100% 30% no-repeat,
+    repeating-linear-gradient(to bottom, rgba(var(--h), 0.07) 0 1px, transparent 1px 4px);
+  animation: nx-varre 7s linear infinite;
+}
+/* colchetes nos quatro cantos */
+.nx-hud::after {
+  content: ""; position: absolute; inset: -6px; pointer-events: none; --b: rgba(var(--h), 0.95);
+  background:
+    linear-gradient(var(--b), var(--b)) 0 0 / 22px 2px, linear-gradient(var(--b), var(--b)) 0 0 / 2px 22px,
+    linear-gradient(var(--b), var(--b)) 100% 0 / 22px 2px, linear-gradient(var(--b), var(--b)) 100% 0 / 2px 22px,
+    linear-gradient(var(--b), var(--b)) 0 100% / 22px 2px, linear-gradient(var(--b), var(--b)) 0 100% / 2px 22px,
+    linear-gradient(var(--b), var(--b)) 100% 100% / 22px 2px, linear-gradient(var(--b), var(--b)) 100% 100% / 2px 22px;
+  background-repeat: no-repeat; filter: drop-shadow(0 0 6px rgba(var(--h), 0.9));
+}
+.nx-hud > * { position: relative; z-index: 1; }
+
+.nx-feixe {
+  position: absolute; left: 50%; bottom: 50%; width: var(--fw, 62%); height: var(--fh, 190px); transform: translateX(-50%); pointer-events: none;
+  clip-path: polygon(32% 0, 68% 0, 100% 100%, 0 100%);
+  background: linear-gradient(to top, rgba(var(--h), 0.55), rgba(var(--h), 0.14) 55%, rgba(var(--h), 0));
+  filter: blur(5px); animation: nx-pisca 4.5s ease-in-out infinite alternate;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 70%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 70%, transparent);
+}
+.nx-base { position: relative; width: 100%; height: var(--bh, 110px); perspective: calc(var(--bd, 300px) * 3); pointer-events: none; }
+.nx-base-disco {
+  position: absolute; left: 50%; top: 50%; width: var(--bd, 300px); height: var(--bd, 300px);
+  margin: calc(var(--bd, 300px) / -2) 0 0 calc(var(--bd, 300px) / -2); transform: rotateX(74deg);
+}
+.nx-base-disco i { position: absolute; inset: 0; border-radius: 50%; }
+.nx-b-glow { background: radial-gradient(circle, #fff 0 2%, rgba(var(--h), 0.7) 6%, rgba(var(--h), 0.24) 26%, transparent 62%); }
+.nx-b-aneis {
+  background:
+    radial-gradient(circle, transparent 0 94%, rgba(var(--h), 0.9) 95% 96.5%, transparent 97.5%),
+    radial-gradient(circle, transparent 0 78%, rgba(var(--h), 0.5) 79% 80%, transparent 81%),
+    radial-gradient(circle, transparent 0 60%, rgba(var(--h), 0.6) 61% 62.5%, transparent 63.5%),
+    radial-gradient(circle, transparent 0 38%, rgba(var(--h), 0.5) 39% 40%, transparent 41%);
+  box-shadow: 0 0 34px rgba(var(--h), 0.35);
+}
+.nx-b-seg {
+  inset: 7% !important; background: repeating-conic-gradient(rgba(var(--h), 0.8) 0 5deg, transparent 5deg 12deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 64%, #000 65% 80%, transparent 81%); mask: radial-gradient(circle, transparent 0 64%, #000 65% 80%, transparent 81%);
+  animation: nx-gira 24s linear infinite;
+}
+
+/* ---------- planos: cada cartão é um painel projetado de uma plataforma ---------- */
+.nx-plano { position: relative; display: flex; flex-direction: column; align-items: center; padding-top: 32px; }
+.nx-plano.is-hot { --h: 243, 199, 92; }
+.nx-plano > .nx-orbe { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 3; }
+.nx-plano.is-hot > .nx-orbe { box-shadow: 0 0 0 1px rgba(255, 225, 160, 0.5), 0 0 26px rgba(243, 199, 106, 0.6), 0 0 64px rgba(243, 199, 106, 0.3), inset 0 0 14px rgba(255, 225, 160, 0.4); }
+.nx-plano-painel { z-index: 2; flex: 1; width: 100%; padding: 50px 24px 26px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.nx-plano-painel h3 { margin: 6px 0 0; font-size: 22px; font-weight: 800; }
+.nx-plano-painel .nx-btn { width: 100%; margin-top: auto; } /* o botão desce até a base do painel: os três ficam alinhados */
+.nx-plano-painel .nx-lista { margin-bottom: 14px; }
+.nx-plano-texto { margin: 0; color: var(--mute); font-size: 14.5px; }
+.nx-preco { margin: 10px 0 4px; }
+.nx-preco strong { font-size: 38px; font-weight: 800; text-shadow: 0 0 22px rgba(var(--h), 0.6); }
+.nx-preco span { color: var(--mute); font-size: 14px; }
+.nx-etiqueta { padding: 3px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #1b1200; background: linear-gradient(135deg, #ffd98a, #f3c76a); box-shadow: 0 0 16px rgba(243, 199, 106, 0.55); }
+.nx-plano-projecao { --bd: 340px; --bh: 100px; --fh: 190px; position: relative; z-index: 1; width: 100%; height: 100px; margin-top: -26px; }
+.nx-plano-projecao .nx-base { position: absolute; left: 0; right: 0; bottom: 0; }
+.nx-plano.is-hot .nx-btn-solid { background: linear-gradient(135deg, #f3a93a, #ffd98a 60%, #fff0c4); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 28px rgba(243, 199, 106, 0.55); }
+
+/* ---------- chamada final: o agente projetado de uma plataforma holográfica ---------- */
+.nx-final { padding-bottom: 16px; }
+.nx-holo { position: relative; max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; }
+.nx-holo-topo { position: relative; z-index: 2; width: 330px; height: 330px; display: grid; place-items: center; }
+.nx-holo-aneis { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke: rgba(var(--h), 0.5); stroke-width: 1.2; filter: drop-shadow(0 0 6px rgba(var(--h), 0.7)); }
+.nx-anel { transform-origin: 0 0; animation: nx-gira 46s linear infinite; }
+.nx-anel-b { animation-duration: 30s; animation-direction: reverse; }
+.nx-anel-c { animation-duration: 22s; }
+.nx-anel .forte { stroke: #fff; stroke-width: 2.6; stroke-linecap: round; }
+.nx-anel .ouro { stroke: #f3c76a; stroke-width: 2.6; stroke-linecap: round; }
+.nx-holo-feixe { --fw: 560px; left: 50%; top: 230px; bottom: 95px; height: auto; clip-path: polygon(36% 0, 64% 0, 100% 100%, 0 100%); z-index: 0; }
+.nx-holo-painel { z-index: 2; width: min(540px, 100%); margin-top: -40px; padding: 38px 38px 34px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.nx-holo-painel h2 { margin: 0; font-size: clamp(26px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; text-shadow: 0 0 30px rgba(var(--h), 0.5); }
+.nx-holo-painel .nx-sub { margin-top: 0; }
+.nx-holo-painel .nx-btn { margin-top: 10px; }
+.nx-holo-base { --bd: 680px; --bh: 190px; position: relative; z-index: 1; width: 100%; margin-top: -64px; }
+.nx-holo-dados { position: absolute; top: 310px; z-index: 2; width: 214px; padding: 16px 16px 12px; text-align: left; font: 12px/1.75 ui-monospace, "Cascadia Mono", Consolas, monospace; color: #bfe6ff; }
+.nx-holo-dados p { margin: 0; }
+.nx-holo-dados b { color: #fff; font-weight: 600; }
+.nx-holo-dados .ouro { color: var(--ouro); }
+.nx-holo-esq { right: calc(50% + 270px + 44px); }
+.nx-holo-dir { left: calc(50% + 270px + 44px); }
+.nx-conector { position: absolute; top: 50%; width: 44px; height: 1px; background: rgba(var(--h), 0.85); box-shadow: 0 0 8px rgba(var(--h), 0.9); }
+.nx-conector::after { content: ""; position: absolute; top: -2px; width: 5px; height: 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px #fff; }
+.nx-holo-esq .nx-conector { left: 100%; } .nx-holo-esq .nx-conector::after { right: -2px; }
+.nx-holo-dir .nx-conector { right: 100%; } .nx-holo-dir .nx-conector::after { left: -2px; }
+
+/* ---------- rodapé ---------- */
+.nx-rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; width: min(1120px, calc(100% - 32px)); margin: 56px auto 0; padding: 22px 0 32px; border-top: 1px solid rgba(140, 215, 255, 0.16); }
+.nx-fine { margin: 0; font-size: 13px; color: var(--mute); }
+.nx-rodape nav { display: flex; gap: 6px; }
+
+/* ---------- formação: a rede constrói cada bloco ----------
+   Os pontos de luz chegam primeiro (rede-viva.tsx). Depois: f2 = moldura e bolha aparecem; f3 = os textos se condensam. */
+.nx-formacao { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+.nx-pronto [data-revela] { opacity: 0; }
+.nx-pronto [data-revela].f2 { opacity: 1; animation: nx-aparece 0.7s ease both; }
+.nx-pronto [data-revela].f2 :is(.nx-orbe, .nx-esfera) { animation: nx-pop 0.85s cubic-bezier(0.2, 1.4, 0.3, 1) both; }
+.nx-pronto [data-revela] :is(h2, h3, p, li, .nx-btn, .nx-etiqueta, .nx-numero, .nx-kicker, strong, .nx-esfera-texto span) { opacity: 0; }
+.nx-pronto [data-revela].f3 :is(h2, h3, p, li, .nx-btn, .nx-etiqueta, .nx-numero, .nx-kicker, strong, .nx-esfera-texto span) {
+  opacity: 1; animation: nx-condensa 0.85s ease both; animation-delay: calc(var(--i, 0) * 70ms);
+}
+/* blocos que o leitor já deixou para trás (ou quem prefere menos movimento) aparecem prontos, sem animação */
+.nx-pronto [data-revela].inst, .nx-pronto [data-revela].inst :is(.nx-orbe, .nx-esfera, h2, h3, p, li, .nx-btn, .nx-etiqueta, .nx-numero, .nx-kicker, strong, .nx-esfera-texto span) { animation: none; }
+@keyframes nx-aparece { from { opacity: 0; } to { opacity: 1; } }
+@keyframes nx-pop { from { scale: 0.45; opacity: 0; } 55% { opacity: 1; } to { scale: 1; opacity: 1; } }
+@keyframes nx-condensa { from { opacity: 0; filter: blur(9px) brightness(2.4); } to { opacity: 1; filter: blur(0) brightness(1); } }
+@keyframes nx-pulsa { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes nx-gira { to { transform: rotate(360deg); } }
+@keyframes nx-brilho { to { background-position: 100% 0; } }
+@keyframes nx-pisca { from { opacity: 0.7; } to { opacity: 1; } }
+@keyframes nx-varre { from { background-position: 0 0, 0 -50%, 0 0; } to { background-position: 0 0, 0 150%, 0 0; } }
+
+/* ---------- telas médias: os painéis de dados do holograma saem para não apertar ---------- */
+@media (max-width: 1180px) {
+  .nx-holo-dados { display: none; }
+}
+
+/* ---------- tablet: grades de 3 viram coluna única centralizada (sem cartão órfão) ---------- */
+@media (max-width: 960px) {
+  .nx-grade-3 { grid-template-columns: minmax(0, 440px); justify-content: center; }
+}
+/* abaixo de 960 px a cena usa o layout vertical (ela decide pelo próprio tamanho: menos de 900 px) */
+@media (max-width: 959px) {
+  .nx-cena { width: min(100%, 560px); aspect-ratio: 400 / 704; }
+  .nx-ancora { top: 48.4%; }
+}
+
+/* ---------- celular ---------- */
+@media (max-width: 719px) {
+  .nx-nav { padding: 6px 8px 6px 14px; }
+  .nx-link-ancora { display: none; }
+  .nx-secao { padding-top: 64px; }
+  .nx-passos { grid-template-columns: 1fr; gap: 34px; }
+  .nx-grade { max-width: 440px; }
+  .nx-grade-planos { gap: 64px; }
+  .nx-holo-topo { width: 270px; height: 270px; }
+  .nx-holo .nx-esfera { --d: 124px !important; }
+  .nx-holo-feixe { --fw: 100%; top: 200px; }
+  .nx-holo-painel { padding: 34px 20px 28px; }
+  .nx-holo-base { --bd: 440px; --bh: 124px; margin-top: -40px; }
+  .nx-rodape { justify-content: center; text-align: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.nx-root) { scroll-behavior: auto; }
+  .nx-pronto [data-revela], .nx-pronto [data-revela] :is(h2, h3, p, li, .nx-btn, .nx-etiqueta, .nx-numero, .nx-kicker, strong, .nx-esfera-texto span) { opacity: 1; animation: none; }
+  .nx-formacao { display: none; }
+  .nx-esfera-rede, .nx-logo-orbe, .nx-anel, .nx-b-seg, .nx-feixe, .nx-hud::before, .nx-hero h1 span { animation: none; }
+}
+
+/* ============ Holograma do agente: abre ao clicar numa bolha da cena ============
+   A câmera mergulha na bolha (um círculo nasce nela e cresce até tomar a tela). Depois o holograma acende em ordem:
+   anéis e plataforma -> feixe de luz -> ícone dourado (varredura de baixo para cima e clarão) -> painel de informações. */
+@property --hz-p { syntax: "<percentage>"; inherits: false; initial-value: 110%; }
+html.hz-aberto { overflow: hidden; scrollbar-gutter: stable; }
+
+.hz-raiz {
+  --s: min(340px, 34vh); /* tamanho do ícone: tudo no estágio é proporcional a ele */
+  position: fixed; inset: 0; z-index: 60; color: var(--ink);
+  clip-path: circle(160vmax at var(--ox) var(--oy));
+  animation: hz-iris 0.95s cubic-bezier(0.6, 0, 0.2, 1) both;
+}
+.hz-raiz.saindo { animation: hz-iris-sai 0.55s cubic-bezier(0.5, 0, 0.8, 0.3) both; pointer-events: none; }
+.hz-fundo {
+  position: absolute; inset: 0;
+  background: radial-gradient(55% 70% at 30% 50%, rgba(30, 100, 255, 0.32), transparent 70%), radial-gradient(40% 50% at 82% 40%, rgba(20, 70, 190, 0.22), transparent 70%), rgba(1, 7, 32, 0.99);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+.hz-onda {
+  position: absolute; left: var(--ox); top: var(--oy); width: calc(var(--or) * 2); height: calc(var(--or) * 2); margin: calc(var(--or) * -1) 0 0 calc(var(--or) * -1);
+  border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.95); box-shadow: 0 0 34px rgba(95, 211, 255, 0.95), inset 0 0 24px rgba(95, 211, 255, 0.6); pointer-events: none;
+  animation: hz-onda 0.9s ease-out both;
+}
+.hz-conteudo { position: absolute; inset: 0; display: grid; place-items: center; transform-origin: var(--ox) var(--oy); animation: hz-aproxima 0.95s cubic-bezier(0.6, 0, 0.2, 1) both; }
+.hz-raiz.saindo .hz-conteudo { animation: hz-afasta 0.55s cubic-bezier(0.5, 0, 0.8, 0.3) both; }
+
+/* ---------- desktop: holograma à esquerda, informações à direita ---------- */
+.hz-palco { width: min(1160px, 100%); padding: 24px clamp(20px, 3vw, 40px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 520px); gap: clamp(24px, 5vw, 84px); align-items: center; }
+.hz-estagio { position: relative; justify-self: center; width: calc(var(--s) * 1.5); height: calc(var(--s) * 1.95); }
+.hz-aneis {
+  position: absolute; left: 50%; top: calc(var(--s) * 0.5); width: calc(var(--s) * 1.4); height: calc(var(--s) * 1.4); translate: -50% -50%; overflow: visible;
+  fill: none; stroke: rgba(var(--h), 0.5); stroke-width: 1.2; filter: drop-shadow(0 0 6px rgba(var(--h), 0.7)); animation: nx-aparece 0.9s ease both 0.7s;
+}
+.hz-aneis .nx-anel { transform-origin: 0 0; animation: nx-gira 46s linear infinite; }
+.hz-aneis .nx-anel-b { animation-duration: 30s; animation-direction: reverse; }
+.hz-aneis .nx-anel-c { animation-duration: 22s; }
+.hz-aneis .forte { stroke: #fff; stroke-width: 2.6; stroke-linecap: round; }
+.hz-aneis .ouro { stroke: #f3c76a; stroke-width: 2.6; stroke-linecap: round; }
+.hz-icone { position: absolute; left: 50%; top: 0; width: var(--s); height: var(--s); translate: -50% 0; display: grid; place-items: center; z-index: 2; animation: hz-clarao 1.6s ease both 1.25s; }
+.hz-icone img {
+  max-width: 100%; max-height: 100%; object-fit: contain; user-select: none;
+  filter: drop-shadow(0 0 16px rgba(243, 199, 106, 0.55)) drop-shadow(0 0 46px rgba(243, 199, 106, 0.3));
+  -webkit-mask-image: linear-gradient(to top, #000 calc(var(--hz-p) - 14%), transparent var(--hz-p)); mask-image: linear-gradient(to top, #000 calc(var(--hz-p) - 14%), transparent var(--hz-p));
+  animation: hz-varre 1.35s ease-out both 1.25s, hz-flutua 6s ease-in-out infinite alternate 2.8s;
+}
+.hz-feixe {
+  position: absolute; left: 50%; top: calc(var(--s) * 0.88); bottom: calc(44px + var(--s) * 0.18); width: calc(var(--s) * 1.05); translate: -50% 0; transform-origin: 50% 100%; z-index: 1;
+  clip-path: polygon(34% 0, 66% 0, 100% 100%, 0 100%); background: linear-gradient(to top, rgba(var(--h), 0.6), rgba(var(--h), 0.12) 62%, transparent);
+  filter: blur(4px); animation: hz-feixe 0.7s ease both 0.95s;
+}
+.hz-base { --bd: calc(var(--s) * 1.3); --bh: calc(var(--s) * 0.38); position: absolute; left: 0; right: 0; bottom: 44px; z-index: 0; animation: hz-sobe 0.8s ease both 0.5s; }
+.hz-legenda {
+  position: absolute; left: 0; right: 0; bottom: 0; margin: 0; text-align: center; text-transform: uppercase; letter-spacing: 0.3em; padding-left: 0.3em; font-size: 14px; font-weight: 800; color: var(--c);
+  text-shadow: 0 0 14px rgba(var(--h), 0.9); animation: nx-condensa 0.9s ease both 2.3s;
+}
+
+/* painel de informações (a mesma linguagem dos cartões de Planos) */
+.hz-painel { padding: 30px 30px 26px; display: flex; flex-direction: column; gap: 12px; text-align: left; animation: hz-painel 0.8s ease both 1.5s; }
+.hz-painel > * { animation: nx-condensa 0.85s ease both; animation-delay: calc(1.75s + var(--i, 0) * 90ms); }
+.hz-cab { display: flex; align-items: center; gap: 14px; }
+.hz-cab .nx-orbe::before, .hz-cab .nx-orbe::after { display: none; } /* sem as elipses de plataforma: aqui a bolha é só um selo */
+.hz-raiz:focus { outline: none; }
+.hz-painel h2 { margin: 4px 0 0; font-size: clamp(26px, 2.8vw, 36px); line-height: 1.12; font-weight: 800; text-shadow: 0 0 26px rgba(var(--h), 0.5); }
+.hz-curto { margin: 0; color: #bcd7ec; font-size: 16px; line-height: 1.4; }
+.hz-painel .nx-lista { margin: 4px 0 0; font-size: 15px; gap: 10px; }
+.hz-detalhe { margin: 4px 0 0; color: var(--mute); font-size: 14.5px; line-height: 1.55; }
+.hz-acoes { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+
+/* ---------- celular: uma bolha com o ícone; do feixe dela se projeta o cartão ---------- */
+.hz-conteudo:has(.hz-cel) { display: block; overflow-y: auto; overscroll-behavior: contain; }
+.hz-cel { min-height: 100%; width: min(100%, 460px); margin: 0 auto; padding: 36px 18px 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.hz-bolha.nx-orbe { --d: 168px; margin-bottom: 14px; animation: hz-pop 0.9s cubic-bezier(0.2, 1.4, 0.3, 1) both 0.5s; }
+.hz-bolha img { width: 74%; height: 74%; object-fit: contain; user-select: none; filter: drop-shadow(0 0 10px rgba(243, 199, 106, 0.7)); animation: hz-clarao 1.4s ease both 0.9s, hz-flutua 6s ease-in-out infinite alternate 2.4s; }
+.hz-cone {
+  width: 100%; height: 62px; margin-bottom: -4px; transform-origin: 50% 0; clip-path: polygon(41% 0, 59% 0, 100% 100%, 0 100%);
+  background: linear-gradient(to bottom, rgba(var(--h), 0.65), rgba(var(--h), 0.08)); filter: blur(2px); animation: hz-cone 0.6s ease both 1s;
+}
+.hz-painel-cel { width: 100%; padding: 24px 22px 22px; transform-origin: 50% 0; animation: hz-cartao 0.9s cubic-bezier(0.3, 0.8, 0.2, 1) both 1.2s; }
+.hz-painel-cel > * { animation-delay: calc(1.95s + var(--i, 0) * 90ms); }
+.hz-painel-cel h2 { font-size: 25px; }
+.hz-painel-cel .nx-lista { font-size: 14px; }
+.hz-painel-cel .hz-acoes .nx-btn { flex: 1 1 100%; }
+
+/* saída para Planos: clarão e dissolução do holograma, com uma varredura de luz descendo; por baixo, a página salta até Planos */
+.hz-raiz.indo-planos { pointer-events: none; animation: hz-planos-raiz 0.98s ease both; }
+.hz-raiz.indo-planos .hz-conteudo { animation: hz-planos-conteudo 0.5s ease-in both; }
+.hz-raiz.indo-planos::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 140px; pointer-events: none; z-index: 3;
+  background: linear-gradient(to bottom, transparent, rgba(var(--h), 0.55) 55%, rgba(255, 255, 255, 0.8) 62%, transparent); animation: hz-planos-varre 0.75s ease-in both;
+}
+@keyframes hz-planos-raiz { 0%, 46% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes hz-planos-conteudo { 0% { transform: scale(1); opacity: 1; filter: brightness(1); } 40% { filter: brightness(2.4); } 100% { transform: scale(1.12); opacity: 0; filter: brightness(1); } }
+@keyframes hz-planos-varre { from { transform: translateY(-140px); } to { transform: translateY(100vh); } }
+
+@keyframes hz-iris { from { clip-path: circle(var(--or) at var(--ox) var(--oy)); } to { clip-path: circle(160vmax at var(--ox) var(--oy)); } }
+@keyframes hz-iris-sai { from { clip-path: circle(160vmax at var(--ox) var(--oy)); } to { clip-path: circle(var(--or) at var(--ox) var(--oy)); } }
+@keyframes hz-aproxima { from { transform: scale(0.45); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes hz-afasta { from { transform: scale(1); opacity: 1; } to { transform: scale(0.45); opacity: 0; } }
+@keyframes hz-onda { from { transform: scale(1); opacity: 1; } to { transform: scale(7); opacity: 0; } }
+@keyframes hz-sobe { from { opacity: 0; scale: 0.55; } to { opacity: 1; scale: 1; } }
+@keyframes hz-feixe { from { scale: 1 0; opacity: 0; } to { scale: 1 1; opacity: 1; } }
+@keyframes hz-cone { from { scale: 1 0; opacity: 0; } to { scale: 1 1; opacity: 1; } }
+@keyframes hz-varre { from { --hz-p: 0%; } to { --hz-p: 114%; } }
+@keyframes hz-clarao { 0% { opacity: 0; filter: brightness(0.2); } 16% { opacity: 0.7; } 24% { opacity: 0.15; } 38% { opacity: 1; filter: brightness(1.7); } 64% { filter: brightness(2.7); } 100% { opacity: 1; filter: brightness(1); } }
+@keyframes hz-flutua { from { transform: translateY(0); } to { transform: translateY(-7px); } }
+@keyframes hz-painel { from { opacity: 0; translate: 36px 0; } to { opacity: 1; translate: 0 0; } }
+@keyframes hz-pop { from { scale: 0.4; opacity: 0; } 55% { opacity: 1; } to { scale: 1; opacity: 1; } }
+@keyframes hz-cartao { from { clip-path: inset(-12px -12px 100% -12px); opacity: 0; scale: 0.94 0.8; } to { clip-path: inset(-12px); opacity: 1; scale: 1; } }
+
+/* telas médias: o painel passa para baixo do holograma se não couber ao lado */
+@media (max-width: 960px) and (min-width: 720px) {
+  .hz-palco { grid-template-columns: minmax(0, 1fr); max-height: 100%; overflow-y: auto; gap: 8px; }
+  .hz-raiz { --s: min(280px, 26vh); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hz-raiz, .hz-raiz *, .hz-raiz *::before, .hz-raiz *::after { animation: none !important; }
+  .hz-raiz.indo-planos::after { display: none; }
+}

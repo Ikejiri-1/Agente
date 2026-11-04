@@ -1,0 +1,397 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { BRAND } from "@/lib/brand";
+import { Icon } from "./icons";
+import { NODES, PLANS, STEPS, type NodeDef, type Scene } from "./nodes";
+import "./site.css";
+
+const ZOOM = 3.2;
+
+function NeuralBackground() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let w = 0;
+    let h = 0;
+    let raf = 0;
+    const mouse = { x: -999, y: -999 };
+    type P = { x: number; y: number; vx: number; vy: number };
+    let pts: P[] = [];
+
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = canvas.clientWidth;
+      h = canvas.clientHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const n = Math.min(110, Math.round((w * h) / 14000));
+      pts = Array.from({ length: n }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.25,
+        vy: (Math.random() - 0.5) * 0.25,
+      }));
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of pts) {
+        if (!still) {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0 || p.x > w) p.vx *= -1;
+          if (p.y < 0 || p.y > h) p.vy *= -1;
+        }
+      }
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i];
+        for (let j = i + 1; j < pts.length; j++) {
+          const b = pts[j];
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (d < 140) {
+            ctx.strokeStyle = `rgba(80,170,255,${0.16 * (1 - d / 140)})`;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+        const m = Math.hypot(a.x - mouse.x, a.y - mouse.y);
+        if (m < 160) {
+          ctx.strokeStyle = `rgba(120,230,255,${0.45 * (1 - m / 160)})`;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(mouse.x, mouse.y);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "rgba(140,210,255,0.7)";
+        ctx.fillRect(a.x - 1, a.y - 1, 2, 2);
+      }
+      if (!still) raf = requestAnimationFrame(draw);
+    };
+
+    const move = (e: MouseEvent) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    };
+    resize();
+    draw();
+    window.addEventListener("resize", resize);
+    window.addEventListener("mousemove", move);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", move);
+    };
+  }, []);
+  return <canvas ref={ref} className="nx-bg" aria-hidden="true" />;
+}
+
+function SceneArt({ kind }: { kind: Scene }) {
+  if (kind === "radar")
+    return (
+      <svg viewBox="0 0 240 160" className="nx-scene" aria-hidden="true">
+        {[22, 44, 66].map((r) => (
+          <circle key={r} cx="120" cy="80" r={r} className="nx-s-ring" />
+        ))}
+        <g className="nx-s-sweep">
+          <path d="M120 80 L120 14 A66 66 0 0 1 177 47 Z" />
+        </g>
+        {[
+          [150, 52],
+          [92, 104],
+          [160, 100],
+          [100, 56],
+        ].map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r="3.5" className="nx-s-blip" style={{ animationDelay: `${i * 0.5}s` }} />
+        ))}
+      </svg>
+    );
+  if (kind === "bars")
+    return (
+      <svg viewBox="0 0 240 160" className="nx-scene" aria-hidden="true">
+        {[60, 100, 40, 120, 80, 105].map((hgt, i) => (
+          <rect
+            key={i}
+            x={26 + i * 34}
+            y={140 - hgt}
+            width="20"
+            height={hgt}
+            rx="3"
+            className={i === 2 ? "nx-s-bar nx-s-best" : "nx-s-bar"}
+            style={{ animationDelay: `${i * 0.12}s` }}
+          />
+        ))}
+        <path d="M14 142H226" className="nx-s-ring" />
+      </svg>
+    );
+  if (kind === "gauge")
+    return (
+      <svg viewBox="0 0 240 160" className="nx-scene" aria-hidden="true">
+        <path d="M40 120 A80 80 0 0 1 200 120" className="nx-s-ring nx-s-track" />
+        <path d="M40 120 A80 80 0 0 1 200 120" className="nx-s-arc" pathLength="100" />
+        <g className="nx-s-needle">
+          <path d="M120 120 L120 54" />
+        </g>
+        <circle cx="120" cy="120" r="6" className="nx-s-blip" />
+      </svg>
+    );
+  return (
+    <svg viewBox="0 0 240 160" className="nx-scene" aria-hidden="true">
+      <circle cx="120" cy="80" r="10" className="nx-s-core" />
+      {[0, 1, 2].map((i) => (
+        <circle key={i} cx="120" cy="80" r="10" className="nx-s-pulse" style={{ animationDelay: `${i * 0.8}s` }} />
+      ))}
+    </svg>
+  );
+}
+
+function DetailPanel({ node, onClose }: { node: NodeDef; onClose: () => void }) {
+  const btn = useRef<HTMLButtonElement>(null);
+  useEffect(() => btn.current?.focus(), []);
+  return (
+    <div className="nx-detail" role="dialog" aria-modal="true" aria-label={node.title}>
+      <div className="nx-holo nx-detail-card">
+        <div className="nx-detail-art">
+          <SceneArt kind={node.scene} />
+        </div>
+        <div className="nx-detail-body">
+          <div className="nx-chip-row">
+            <span className="nx-ico">
+              <Icon name={node.icon} size={22} />
+            </span>
+            <span className={node.status === "mvp" ? "nx-chip nx-chip-on" : "nx-chip"}>
+              {node.status === "mvp" ? "Disponível no teste" : "Em breve"}
+            </span>
+          </div>
+          <h2>{node.title}</h2>
+          <p>{node.detail}</p>
+          <ul>
+            {node.points.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+          <div className="nx-actions">
+            <Link href="/cadastro" className="nx-btn nx-btn-solid">
+              Começar grátis
+            </Link>
+            <button ref={btn} onClick={onClose} className="nx-btn">
+              Voltar ao agente
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Plans({ onClose }: { onClose: () => void }) {
+  const btn = useRef<HTMLButtonElement>(null);
+  useEffect(() => btn.current?.focus(), []);
+  return (
+    <div className="nx-plans" role="dialog" aria-modal="true" aria-label="Planos">
+      <div className="nx-plans-head">
+        <h2>Escolha como o agente trabalha para você</h2>
+        <p>Valores de referência. Serão confirmados depois do período de testes.</p>
+      </div>
+      <div className="nx-plans-grid">
+        {PLANS.map((p, i) => (
+          <article key={p.id} className={p.tag ? "nx-plan nx-plan-hot" : "nx-plan"} style={{ animationDelay: `${i * 0.12}s` }}>
+            <div className="nx-holo nx-plan-card">
+              {(p.tag || p.badge) && <span className="nx-plan-flag">{p.tag ?? p.badge}</span>}
+              <h3>{p.name}</h3>
+              <p className="nx-plan-blurb">{p.blurb}</p>
+              <p className="nx-plan-price">
+                <strong>{p.price}</strong> <span>{p.per}</span>
+              </p>
+              <ul>
+                {p.features.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+              {p.href ? (
+                <Link href={p.href} className={p.tag ? "nx-btn nx-btn-solid" : "nx-btn"}>
+                  {p.cta}
+                </Link>
+              ) : (
+                <button className="nx-btn" disabled>
+                  {p.cta}
+                </button>
+              )}
+            </div>
+            <div className="nx-beam" aria-hidden="true" />
+          </article>
+        ))}
+      </div>
+      <button ref={btn} onClick={onClose} className="nx-btn nx-plans-close">
+        Fechar
+      </button>
+    </div>
+  );
+}
+
+export default function Landing() {
+  const [zoom, setZoom] = useState<NodeDef | null>(null);
+  const [panel, setPanel] = useState(false);
+  const [plans, setPlans] = useState(false);
+  const timer = useRef<number>(0);
+
+  const wrap = useRef<HTMLDivElement>(null);
+
+  const open = useCallback((n: NodeDef) => {
+    wrap.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    setZoom(n);
+    window.clearTimeout(timer.current);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    timer.current = window.setTimeout(() => setPanel(true), reduce ? 0 : 950);
+  }, []);
+  const close = useCallback(() => {
+    window.clearTimeout(timer.current);
+    setPanel(false);
+    setZoom(null);
+  }, []);
+
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (plans) setPlans(false);
+      else close();
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [plans, close]);
+
+  const stageStyle = zoom
+    ? { transform: `translate(${50 - zoom.x * ZOOM}%, ${50 - zoom.y * ZOOM}%) scale(${ZOOM})` }
+    : undefined;
+
+  return (
+    <div className="nx-root">
+      <NeuralBackground />
+
+      <header className="nx-nav">
+        <span className="nx-logo">
+          <span className="nx-logo-dot" /> {BRAND}
+        </span>
+        <nav>
+          <button onClick={() => setPlans(true)} className="nx-link">
+            Planos
+          </button>
+          <Link href="/login" className="nx-link">
+            Entrar
+          </Link>
+          <Link href="/cadastro" className="nx-btn nx-btn-solid">
+            Começar grátis
+          </Link>
+        </nav>
+      </header>
+
+      <section className="nx-hero">
+        <p className="nx-kicker">Agente de IA de compras e estoque</p>
+        <h1>
+          Você pede. <span>O agente pesquisa, compara e propõe.</span>
+        </h1>
+        <p className="nx-sub">Nada acontece sem a sua aprovação, e sempre dentro do limite que você definiu.</p>
+        <div className="nx-hero-cta">
+          <Link href="/cadastro" className="nx-btn nx-btn-solid">
+            Começar grátis
+          </Link>
+          <button onClick={() => setPlans(true)} className="nx-btn">
+            Ver planos
+          </button>
+        </div>
+      </section>
+
+      <div ref={wrap} className="nx-stage-wrap" data-zoom={zoom ? "1" : undefined}>
+        <div className="nx-stage" style={stageStyle}>
+          <svg className="nx-links" viewBox="0 0 160 100" aria-hidden="true">
+            {NODES.map((n) => (
+              <line key={n.id} x1="80" y1="50" x2={n.x * 1.6} y2={n.y} className="nx-link-line" />
+            ))}
+          </svg>
+
+          <div className="nx-core" aria-hidden="true">
+            <div className="nx-core-ring" />
+            <div className="nx-core-ring nx-core-ring-b" />
+            <div className="nx-core-body">
+              <strong>NEXA
+              </strong>
+              <span>Pesquisa · Compara · Avisa · Propõe</span>
+            </div>
+          </div>
+
+          {NODES.map((n) => (
+            <button
+              key={n.id}
+              onClick={() => open(n)}
+              className={`nx-node nx-tip-${n.tip}${zoom?.id === n.id ? " is-zoomed" : ""}`}
+              style={{ left: `${n.x}%`, top: `${n.y}%` }}
+              tabIndex={zoom ? -1 : 0}
+              aria-label={`${n.title}. ${n.short}`}
+            >
+              <span className="nx-node-orb">
+                <Icon name={n.icon} size={26} />
+              </span>
+              <span className="nx-node-label">{n.title}</span>
+              <span className="nx-card" role="presentation">
+                <span className={n.status === "mvp" ? "nx-chip nx-chip-on" : "nx-chip"}>
+                  {n.status === "mvp" ? "Disponível no teste" : "Em breve"}
+                </span>
+                <b>{n.title}</b>
+                <i>{n.short}</i>
+                <span className="nx-card-list">
+                  {n.points.slice(0, 2).map((p) => (
+                    <span key={p}>{p}</span>
+                  ))}
+                </span>
+                <em>Clique para explorar →</em>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ul className="nx-mobile-grid">
+        {NODES.map((n) => (
+          <li key={n.id}>
+            <button onClick={() => { setZoom(n); setPanel(true); }} className="nx-holo nx-mobile-card">
+              <span className="nx-ico">
+                <Icon name={n.icon} size={22} />
+              </span>
+              <span>
+                <b>{n.title}</b>
+                <i>{n.short}</i>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <section className="nx-how" aria-label="Como funciona">
+        <h2>Como funciona</h2>
+        <ol>
+          {STEPS.map((s, i) => (
+            <li key={s.label}>
+              <span className="nx-ico">
+                <Icon name={s.icon} size={22} />
+              </span>
+              <span>{s.label}</span>
+              {i < STEPS.length - 1 && <span className="nx-arrow" aria-hidden="true">→</span>}
+            </li>
+          ))}
+        </ol>
+        <p className="nx-tagline">Nunca mais “não temos hoje”. Você pede, o agente cuida do resto.</p>
+        <p className="nx-fine">Versão de teste: nenhum pagamento é feito e os preços de demonstração são fictícios.</p>
+      </section>
+
+      {zoom && panel && <DetailPanel node={zoom} onClose={close} />}
+      {plans && <Plans onClose={() => setPlans(false)} />}
+    </div>
+  );
+}

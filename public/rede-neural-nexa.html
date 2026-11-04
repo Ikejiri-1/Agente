@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nexa · Agente de IA de compras e estoque</title>
+<!--
+  Cena "rede neural luminosa" do Nexa, composta a partir da imagem de referência do projeto.
+  Canvas 2D sem dependências. Textos em HTML por cima da arte (acessíveis e traduzíveis).
+  Edite só o objeto configuracaoDaCena. As posições estão em unidades de um palco de
+  referência (1024x682 na horizontal, 520x960 na vertical) e são escaladas para a janela.
+  Captura determinística: abra com ?tempo=3.2 (a página desenha um quadro e define title="pronto").
+-->
+<style>
+  :root { --u: 1px; --uc: min(var(--u), 1.06px); --cor-fundo: #01061a; --cor-ouro: #f3c76a; --cor-ciano: #4fc3ff; color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: var(--cor-fundo); overflow: hidden; }
+  /* esquema de cores neutro: com "dark" o navegador pinta o iframe de opaco e a transparência se perde */
+  html.embutido { color-scheme: normal; }
+  html.embutido, html.embutido body { background: transparent; }
+  body { font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, system-ui, sans-serif; color: #f2f9ff; }
+  /* lvh = altura "grande" da janela: a barra de endereço do celular não faz a cena mudar de tamanho */
+  #palco, #camada-de-texto { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; height: 100lvh; overflow: hidden; }
+  #palco canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .texto { position: absolute; pointer-events: none; text-align: center;
+    text-shadow: 0 0 12px rgba(30, 120, 255, .85), 0 1px 3px rgba(0, 0, 0, .85); }
+  .rotulo { transform: translate(-50%, -50%); }
+  .rotulo:not(.satelite) { width: calc(var(--u) * 170); }
+  .retrato .rotulo:not(.satelite) { width: max(calc(var(--u) * 150), 150px); }
+  .retrato .rotulo .nome { font-size: max(calc(var(--u) * 12.5), 10px); white-space: nowrap; }
+  .retrato .rotulo .verbos { font-size: max(calc(var(--u) * 9.5), 9.5px); }
+  .retrato .rotulo.satelite { width: calc(var(--u) * 92); font-size: max(calc(var(--u) * 10.5), 10px); line-height: 1.15; }
+  .retrato #nucleo-texto strong { font-size: max(calc(var(--u) * 22), 16px); }
+  .retrato #nucleo-texto span { font-size: max(calc(var(--u) * 14), 11px); }
+  .rotulo .nome { font-weight: 700; text-transform: uppercase; line-height: 1.15; letter-spacing: .01em;
+    font-size: max(calc(var(--u) * 13.5), 11px); }
+  .rotulo .verbos { font-weight: 500; text-transform: uppercase; line-height: 1.28; margin-top: calc(var(--u) * 3);
+    font-size: max(calc(var(--u) * 9.5), 10.5px); color: #e4f1ff; }
+  .rotulo.satelite { width: calc(var(--u) * 104); font-weight: 500; line-height: 1.22; text-wrap: balance;
+    font-size: max(calc(var(--u) * 10.8), 10px); color: #eaf4ff; }
+  .icone { transform: translate(-50%, -50%); filter: drop-shadow(0 0 5px rgba(150, 220, 255, .95)) drop-shadow(0 0 14px rgba(60, 160, 255, .7)); transition: transform .28s cubic-bezier(.2, .8, .2, 1), opacity .25s; }
+  .icone.quente { transform: translate(-50%, -50%) scale(1.12); }
+  .rotulo { transition: opacity .25s; }
+  .com-foco .rotulo:not(.quente) { opacity: .5; }
+  .com-foco .icone:not(.quente) { opacity: .75; }
+  /* áreas de hover: círculo sobre a bolha e retângulo/elipse sobre o rótulo */
+  .alvo { position: absolute; z-index: 4; transform: translate(-50%, -50%); padding: 0; margin: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent; }
+  .alvo.retangulo { border-radius: 14px; }
+  .alvo:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+  /* cartão holográfico com os detalhes da função */
+  .cartao {
+    --b: rgba(95, 211, 255, .95);
+    position: absolute; z-index: 6; width: min(calc(var(--uc) * 268), calc(100% - 16px)); padding: calc(var(--uc) * 15) calc(var(--uc) * 17) calc(var(--uc) * 14); text-align: left; pointer-events: none; border-radius: 10px;
+    background: linear-gradient(180deg, rgba(22, 70, 170, .96), rgba(3, 12, 54, .97) 70%);
+    border: 1px solid rgba(95, 211, 255, .5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    box-shadow: 0 0 40px rgba(60, 160, 255, .4), inset 0 0 30px rgba(95, 211, 255, .1), inset 0 1px 0 rgba(255, 255, 255, .25);
+    opacity: 0; visibility: hidden; transform: translateY(8px) scale(.97);
+    transition: opacity .22s ease, transform .22s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .22s;
+  }
+  .cartao.aberto { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+  .cartao::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: repeating-linear-gradient(to bottom, rgba(95, 211, 255, .07) 0 1px, transparent 1px 4px); }
+  .cartao::after {
+    content: ""; position: absolute; inset: -5px; pointer-events: none; filter: drop-shadow(0 0 6px rgba(95, 211, 255, .9));
+    background:
+      linear-gradient(var(--b), var(--b)) 0 0 / 18px 2px, linear-gradient(var(--b), var(--b)) 0 0 / 2px 18px,
+      linear-gradient(var(--b), var(--b)) 100% 0 / 18px 2px, linear-gradient(var(--b), var(--b)) 100% 0 / 2px 18px,
+      linear-gradient(var(--b), var(--b)) 0 100% / 18px 2px, linear-gradient(var(--b), var(--b)) 0 100% / 2px 18px,
+      linear-gradient(var(--b), var(--b)) 100% 100% / 18px 2px, linear-gradient(var(--b), var(--b)) 100% 100% / 2px 18px;
+    background-repeat: no-repeat;
+  }
+  .cartao > * { position: relative; }
+  .cartao h3 { margin: calc(var(--uc) * 8) 0 calc(var(--uc) * 3); font-size: max(calc(var(--uc) * 16), 15px); line-height: 1.2; font-weight: 800; }
+  .cartao .curto { margin: 0; font-size: max(calc(var(--uc) * 12.5), 13px); line-height: 1.4; color: #bcd7ec; }
+  .cartao ul { list-style: none; margin: calc(var(--uc) * 9) 0 0; padding: 0; display: grid; gap: calc(var(--uc) * 5); }
+  .cartao li { position: relative; padding-left: calc(var(--uc) * 15); font-size: max(calc(var(--uc) * 11.5), 12.5px); line-height: 1.35; color: #dcecf9; }
+  .cartao li::before { content: ""; position: absolute; left: calc(var(--uc) * 2); top: .45em; width: 6px; height: 6px; border-radius: 50%; background: radial-gradient(circle, #fff, #5fd3ff 60%, transparent 70%); box-shadow: 0 0 8px #5fd3ff; }
+  .cartao .chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: max(calc(var(--uc) * 9.5), 10.5px); letter-spacing: .04em; color: #a9c4da; border: 1px solid rgba(169, 196, 218, .4); }
+  .cartao .chip.mvp { color: #b8f0ff; border-color: rgba(95, 211, 255, .7); background: rgba(40, 140, 255, .16); box-shadow: 0 0 12px rgba(95, 211, 255, .3); }
+  @media (prefers-reduced-motion: reduce) { .icone, .rotulo, .cartao { transition: none; } }
+  .icone svg { width: 100%; height: 100%; fill: none; stroke: #f4fbff; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  #nucleo-texto { transform: translate(-50%, -50%); text-shadow: 0 0 16px rgba(10, 60, 200, .95), 0 0 4px rgba(0, 10, 50, .9), 0 1px 2px #000; }
+  #nucleo-texto strong { display: block; font-size: max(calc(var(--u) * 31), 17px); line-height: 1.1; font-weight: 800; text-transform: uppercase; letter-spacing: .01em; }
+  #nucleo-texto span { display: block; font-size: max(calc(var(--u) * 19), 12px); line-height: 1.32; font-weight: 500; margin-top: calc(var(--u) * 2); }
+  #nucleo-texto strong + span { margin-top: calc(var(--u) * 7); }
+</style>
+</head>
+<body>
+<div id="palco" role="img" aria-labelledby="descricao-cena"><canvas id="tela"></canvas></div>
+<p id="descricao-cena" hidden></p>
+<div id="camada-de-texto"></div>
+
+<script>
+"use strict";
+// ======================= CONFIGURAÇÃO (edite aqui) =======================
+const configuracaoDaCena = {
+  marca: "Nexa",
+  legenda: "Agente de IA de compras e estoque",
+  nucleo: { titulo: "Nexa", linhas: ["Pesquisa - Compara", "Avisa - Compra"] },
+  agentes: [
+    { nome: "Pesquisa nas lojas", verbos: ["Busca - Filtra - Encontra"], icone: "lupa" },
+    { nome: "Comparação", verbos: ["Preço - Qualidade", "Disponibilidade"], icone: "balanca" },
+    { nome: "Compra automática", verbos: ["Pede - Repete todo mês", "Ajusta quando você pedir"], icone: "carrinho" },
+    { nome: "Pagamento seguro", verbos: ["Você aprova", "- Respeita o limite", "- Protege"], icone: "cartao" },
+    { nome: "Controle de estoque", verbos: ["Registra entradas", "- Prevê - Repõe na", "hora certa"], icone: "caixa" },
+  ],
+  satelites: [
+    { nome: "Compras da família", icone: "casa" },
+    { nome: "Login e senha de cada usuário", icone: "usuarioChave" },
+    { nome: "Supermercados integrados", icone: "loja" },
+    { nome: "Empresas e comércios", icone: "comercio" },
+    { nome: "Alerta de falta ou excesso", icone: "sino" },
+    { nome: "Aviso ao supervisor", icone: "chat" },
+  ],
+  paleta: { ciano: [79, 195, 255], azul: [36, 110, 255], ouro: [255, 196, 92], branco: [235, 248, 255] },
+  semente: 11,
+};
+
+// Detalhes mostrados no hover. Espelham os itens de app/(site)/nodes.ts (NODES); lá está o texto completo.
+// Chaves: a0..a4 = agentes (na ordem acima), s0..s5 = bolhas laterais.
+const detalhes = {
+  a0: { status: "mvp", curto: "Busca, filtra e encontra.", pontos: ["Lê os preços de cada mercado da região", "Sinaliza preço velho (mais de 30 dias)", "Cada preço guarda fonte e data"] },
+  a1: { status: "mvp", curto: "Preço, frete e disponibilidade.", pontos: ["Compara o carrinho inteiro, não item solto", "Considera o frete de cada loja", "Só divide em duas lojas se a economia compensar"] },
+  a2: { status: "mvp", curto: "Pede, repete todo mês, ajusta.", pontos: ["Sua lista do mês vira uma proposta pronta", "Você aprova, edita ou recusa", "Nada avança sem o seu aprovar"] },
+  a3: { status: "mvp", curto: "Você aprova. Respeita o limite.", pontos: ["Teto por compra e teto por mês", "Conferido de novo na hora de aprovar", "A IA não tem ferramenta de pagamento"] },
+  a4: { status: "breve", curto: "Entradas, previsão e reposição.", pontos: ["Registra entradas e saídas", "Prevê quando vai faltar", "Sugere reposição na hora certa"] },
+  s0: { status: "mvp", curto: "Uma lista para a casa toda.", pontos: ["Lista do mês e limites da família", "Histórico de tudo que foi proposto", "Plano Família"] },
+  s1: { status: "mvp", curto: "Conta individual e protegida.", pontos: ["Senha guardada com hash forte", "Bloqueio após tentativas erradas", "Cada usuário vê só os próprios dados"] },
+  s2: { status: "breve", curto: "Preços direto dos parceiros.", pontos: ["Ainda sem parcerias fechadas", "Hoje: preços colaborativos e cupons", "Meta: catálogo oficial dos mercados"] },
+  s3: { status: "breve", curto: "Reposição para quem vende.", pontos: ["Plano Empresarial", "Estoque, previsão e reposição", "Em desenho, sob validação com comerciantes"] },
+  s4: { status: "breve", curto: "Avisa antes de virar problema.", pontos: ["Falta iminente de item", "Excesso parado no estoque", "Aviso por e-mail e painel"] },
+  s5: { status: "breve", curto: "Quem decide é avisado.", pontos: ["Encaminha propostas para aprovação", "Registro de quem aprovou e quando", "Para equipes e comércios"] },
+};
+
+// Posições em unidades do palco de referência. "bolha" = centro da bolha, "rotulo" = centro do texto/plataforma.
+const disposicoes = {
+  paisagem: { // desktop: palco largo, bolhas bem afastadas
+    largura: 1200, altura: 640,
+    nucleo: { x: 600, y: 312, raio: 120, textoY: 328 },
+    agentes: [
+      { bolha: [600, 64], rotulo: [600, 130] }, { bolha: [300, 175], rotulo: [300, 255] },
+      { bolha: [900, 175], rotulo: [900, 255] }, { bolha: [300, 415], rotulo: [300, 495] },
+      { bolha: [900, 415], rotulo: [900, 495] },
+    ],
+    satelites: [ // família, login, supermercados | empresas, alerta, supervisor
+      { centro: [95, 110], rotulo: [95, 172], feixe: [226, 178] }, { centro: [62, 290], rotulo: [62, 342] },
+      { centro: [95, 470], rotulo: [95, 532], feixe: [228, 434] }, { centro: [1105, 110], rotulo: [1105, 172], feixe: [974, 178] },
+      { centro: [1138, 290], rotulo: [1138, 342] }, { centro: [1105, 470], rotulo: [1105, 532], feixe: [972, 434] },
+    ],
+    raioDaBolha: 38, raioDoSatelite: 34, raioDaPlataforma: 116, razaoDaPlataforma: 0.37, passoDosAneis: 0.14, horizonteY: 555,
+    cubos: [[205, 598, 36, 0], [345, 574, 28, 1], [860, 578, 32, 1], [960, 606, 26, 0], [1085, 582, 16, 0]],
+    cubosFlutuantes: [[690, 100, 14], [430, 128, 12], [1030, 350, 12], [140, 372, 10]],
+  },
+  retrato: { // celular: núcleo no alto, cinco agentes em coluna dupla abaixo, sem sobreposição de texto
+    largura: 400, altura: 704, deslocamentoY: 56,
+    nucleo: { x: 200, y: 309, raio: 88, textoY: 311 },
+    agentes: [
+      { bolha: [200, 90], rotulo: [200, 160] }, { bolha: [100, 441], rotulo: [100, 511] },
+      { bolha: [300, 441], rotulo: [300, 511] }, { bolha: [100, 603], rotulo: [100, 673] },
+      { bolha: [300, 603], rotulo: [300, 673] },
+    ],
+    satelites: [ // duas colunas nas laterais da esfera, em ordem: família, login, supermercados | empresas, alerta, supervisor
+      { centro: [48, 180], rotulo: [48, 227] }, { centro: [48, 262], rotulo: [48, 309] }, { centro: [48, 344], rotulo: [48, 391] },
+      { centro: [352, 180], rotulo: [352, 227] }, { centro: [352, 262], rotulo: [352, 309] }, { centro: [352, 344], rotulo: [352, 391] },
+    ],
+    raioDaBolha: 30, raioDoSatelite: 22, raioDaPlataforma: 94, razaoDaPlataforma: 0.5, passoDosAneis: 0.04, horizonteY: 700,
+    cubos: [[38, 735, 24, 0], [368, 738, 22, 1], [330, 728, 14, 0]], cubosFlutuantes: [[352, 62, 10], [42, 72, 9]],
+  },
+};
+
+// Ícones de traço (viewBox 0 0 24 24), desenhados para este projeto.
+const iconesSvg = {
+  lupa: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>',
+  balanca: '<path d="M12 3v17M7 20.5h10M4 7h16"/><path d="M5 7l-3 7M5 7l3 7M19 7l-3 7M19 7l3 7"/><path d="M2 14a3 3 0 0 0 6 0M16 14a3 3 0 0 0 6 0"/>',
+  carrinho: '<path d="M2 3.5h3l2.2 11h11l2.3-8H6"/><circle cx="9" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/><path d="M9.5 7v6M13 7v6M16.5 7v6"/>',
+  cartao: '<rect x="2" y="4.5" width="20" height="14" rx="2.5"/><path d="M2 9.5h20M5 14h5"/><rect x="14.5" y="13.5" width="7" height="6" rx="1.2" fill="#0a2a7a"/><path d="M16.3 13.5v-1.6a1.7 1.7 0 0 1 3.4 0v1.6"/>',
+  caixa: '<path d="M3 7.5L12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5L12 12l9-4.5M12 12v9M7.5 5.3l9 4.5"/>',
+  casa: '<path d="M3 11.5L12 3l9 8.5M5.5 10v10.5h4.5v-6h4v6h4.5V10"/>',
+  usuarioChave: '<circle cx="9" cy="8" r="3.6"/><path d="M2.5 20.5a6.5 6.5 0 0 1 9.2-5.9"/><circle cx="17" cy="16" r="2.4"/><path d="M18.8 17.8L22 21M20.6 19.6l1.4-1.4"/>',
+  loja: '<path d="M3 9.5L4.6 4h14.8L21 9.5M3 9.5a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M5 12.5V20h14v-7.5M10 20v-5h4v5"/>',
+  comercio: '<path d="M3.5 8.5h17M5 8.5V4h14v4.5M5.5 8.5V20h13V8.5M9.5 20v-6.5h5V20"/><path d="M3.5 8.5l1-4.5M20.5 8.5l-1-4.5"/>',
+  sino: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l2 2H4zM10 21a2 2 0 0 0 4 0M12 3.5V2"/>',
+  chat: '<path d="M3 5h13v9.5H9.5L5.5 18v-3.5H3zM18.5 9H21v9.5h-2V22l-3.8-3.5H11V17"/>',
+  chatPedir: '<path d="M3 5h18v11.5H10.5L6 20.5v-4H3z"/><path d="M8 10.8h.01M12 10.8h.01M16 10.8h.01" stroke-width="2.4"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="M7.8 12.6l3 3 5.6-6.4"/>',
+};
+
+// Embutida na página (?embutido): fundo transparente, para herdar o fundo e a rede neural da página.
+const embutido = new URLSearchParams(location.search).has("embutido");
+if (embutido) document.documentElement.classList.add("embutido");
+
+// ======================= UTILITÁRIOS =======================
+function criarGeradorAleatorio(semente) { // mulberry32: a mesma imagem a cada captura
+  let estado = semente >>> 0;
+  return function gerarNumeroAleatorio() {
+    estado = (estado + 0x6D2B79F5) >>> 0;
+    let valor = Math.imul(estado ^ (estado >>> 15), 1 | estado);
+    valor ^= valor + Math.imul(valor ^ (valor >>> 7), 61 | valor);
+    return ((valor ^ (valor >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let aleatorio = criarGeradorAleatorio(configuracaoDaCena.semente);
+const entre = (minimo, maximo) => minimo + (maximo - minimo) * aleatorio();
+const corRgba = ([vermelho, verde, azulCor], opacidade) => `rgba(${vermelho},${verde},${azulCor},${opacidade})`;
+const { ciano, azul, ouro, branco } = configuracaoDaCena.paleta;
+
+function desenharBrilhoRadial(contexto, x, y, raio, cor, opacidade) {
+  const gradiente = contexto.createRadialGradient(x, y, 0, x, y, raio);
+  gradiente.addColorStop(0, corRgba(cor, opacidade));
+  gradiente.addColorStop(0.25, corRgba(cor, opacidade * 0.45));
+  gradiente.addColorStop(1, corRgba(cor, 0));
+  contexto.fillStyle = gradiente;
+  contexto.fillRect(x - raio, y - raio, raio * 2, raio * 2);
+}
+
+function pontoNaCurvaCubica(p0, p1, p2, p3, u) {
+  const inverso = 1 - u;
+  const a = inverso ** 3, b = 3 * inverso * inverso * u, c = 3 * inverso * u * u, d = u ** 3;
+  return [a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0], a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1]];
+}
+
+// ======================= ESTADO =======================
+const tela = document.getElementById("tela");
+const contextoFinal = tela.getContext("2d");
+const telaDaCena = document.createElement("canvas");
+const contextoDaCena = telaDaCena.getContext("2d");
+const telaDoBrilhoProximo = document.createElement("canvas");
+const telaDoBrilhoAmplo = document.createElement("canvas");
+const telaDeGrao = document.createElement("canvas");
+let largura = 0, altura = 0, escalaDePixel = 1, layout = null;
+
+const pontosDaEsfera = criarPontosDaEsfera(900);
+const ligacoesDaEsfera = criarLigacoesPorVizinhanca(pontosDaEsfera, 3);
+const nosDeDestaque = pontosDaEsfera.map((_, indice) => indice).filter((indice) => indice % 37 === 0);
+
+function criarPontosDaEsfera(quantidade) { // espiral de Fibonacci = distribuição uniforme
+  const pontos = [], anguloDourado = Math.PI * (3 - Math.sqrt(5));
+  for (let indice = 0; indice < quantidade; indice++) {
+    const y = 1 - (indice / (quantidade - 1)) * 2, raioNoPlano = Math.sqrt(1 - y * y), angulo = anguloDourado * indice;
+    pontos.push([Math.cos(angulo) * raioNoPlano, y, Math.sin(angulo) * raioNoPlano]);
+  }
+  return pontos;
+}
+
+function criarLigacoesPorVizinhanca(pontos, vizinhosPorPonto) {
+  const ligacoes = new Set();
+  pontos.forEach((ponto, indice) => {
+    const distancias = pontos.map((outro, outroIndice) => [outroIndice, (ponto[0] - outro[0]) ** 2 + (ponto[1] - outro[1]) ** 2 + (ponto[2] - outro[2]) ** 2]);
+    distancias.sort((primeiro, segundo) => primeiro[1] - segundo[1]);
+    for (let vizinho = 1; vizinho <= vizinhosPorPonto; vizinho++) {
+      const outroIndice = distancias[vizinho][0];
+      ligacoes.add(indice < outroIndice ? `${indice}-${outroIndice}` : `${outroIndice}-${indice}`);
+    }
+  });
+  return [...ligacoes].map((chave) => chave.split("-").map(Number));
+}
+
+function calcularLayout() {
+  aleatorio = criarGeradorAleatorio(configuracaoDaCena.semente + 1); // mesma cena a cada redimensionamento
+  const retrato = largura < 900 || largura / altura < 0.9;
+  const disposicao = retrato ? disposicoes.retrato : disposicoes.paisagem;
+  const unidade = Math.min(largura / disposicao.largura, altura / disposicao.altura);
+  const origemX = (largura - disposicao.largura * unidade) / 2, origemY = (altura - disposicao.altura * unidade) / 2;
+  const ponto = ([x, y]) => [origemX + x * unidade, origemY + (y - (disposicao.deslocamentoY ?? 0)) * unidade];
+  const nucleo = { centro: ponto([disposicao.nucleo.x, disposicao.nucleo.y]), raio: disposicao.nucleo.raio * unidade };
+  const agentes = configuracaoDaCena.agentes.map((agente, indice) => ({ ...agente,
+    centro: ponto(disposicao.agentes[indice].bolha), rotulo: ponto(disposicao.agentes[indice].rotulo), raio: disposicao.raioDaBolha * unidade }));
+  const satelites = disposicao.satelites.map((posicao, indice) => ({ ...configuracaoDaCena.satelites[indice],
+    centro: ponto(posicao.centro), rotulo: ponto(posicao.rotulo), feixe: posicao.feixe ? ponto(posicao.feixe) : null, raio: disposicao.raioDoSatelite * unidade }));
+  const filamentos = [
+    ...agentes.flatMap((agente, indice) => Array.from({ length: 13 }, () => ({ ...criarFilamento(nucleo, agente, retrato), chave: `a${indice}` }))),
+    ...(retrato ? satelites.flatMap((satelite, indice) => Array.from({ length: 8 }, () => ({ ...criarFilamento(nucleo, satelite, true), chave: `s${indice}` }))) : []),
+  ];
+  const poeira = Array.from({ length: Math.round((largura * altura) / 650) }, () => ({ x: entre(0, largura), y: entre(0, altura),
+    tamanho: entre(0.3, 1.5) ** 2, brilho: entre(0.15, 1), cor: aleatorio() < 0.1 ? ouro : aleatorio() < 0.55 ? ciano : branco }));
+  const correntesDeDados = Array.from({ length: Math.round(largura / 14) }, () => ({ x: entre(0, largura), comprimento: entre(0.08, 0.4) * altura,
+    fase: aleatorio(), velocidade: entre(0.02, 0.07), brilho: entre(0.1, 0.32) }));
+  const circuitos = Array.from({ length: 26 }, () => criarCircuito(unidade));
+  const bokeh = Array.from({ length: 22 }, () => ({ x: entre(0, 1) * largura, y: entre(0, 1) * altura, raio: entre(6, 30) * unidade,
+    opacidade: entre(0.03, 0.12), cor: aleatorio() < 0.2 ? ouro : azul }));
+  const estrelasDoChao = Array.from({ length: 70 }, () => ({ x: entre(0, largura), y: entre(0.72, 1) * altura, brilho: entre(0.2, 0.9), tamanho: entre(0.6, 2), cor: aleatorio() < 0.3 ? ouro : branco }));
+  return { retrato, disposicao, unidade, origemX, origemY, ponto, nucleo, agentes, satelites, filamentos, poeira, correntesDeDados, circuitos, bokeh, estrelasDoChao };
+}
+
+function criarCircuito(unidade) {
+  let x = entre(0, largura), y = entre(0, altura * 0.42);
+  const pontos = [[x, y]];
+  for (let passo = 0; passo < 6; passo++) {
+    const diagonal = aleatorio() < 0.35, distancia = entre(18, 70) * unidade, sinalX = aleatorio() < 0.5 ? -1 : 1, sinalY = aleatorio() < 0.7 ? 1 : -1;
+    if (diagonal) { x += sinalX * distancia * 0.7; y += sinalY * distancia * 0.7; } else if (passo % 2) y += sinalY * distancia; else x += sinalX * distancia;
+    pontos.push([x, y]);
+  }
+  return { pontos, opacidade: entre(0.1, 0.3), cor: aleatorio() < 0.2 ? ouro : ciano };
+}
+
+function criarFilamento(nucleo, agente, terminaNaBorda) { // na borda da bolha o filamento nunca cobre o ícone
+  const [centroX, centroY] = nucleo.centro, [alvoX, alvoY] = agente.centro;
+  const anguloAteAgente = Math.atan2(alvoY - centroY, alvoX - centroX) + entre(-0.4, 0.4);
+  const inicio = [centroX + Math.cos(anguloAteAgente) * nucleo.raio * 0.97, centroY + Math.sin(anguloAteAgente) * nucleo.raio * 0.97];
+  const anguloDaBorda = Math.atan2(centroY - alvoY, centroX - alvoX) + entre(-0.55, 0.55);
+  const fim = terminaNaBorda ? [alvoX + Math.cos(anguloDaBorda) * agente.raio * 1.04, alvoY + Math.sin(anguloDaBorda) * agente.raio * 1.04]
+    : [alvoX + entre(-1, 1) * agente.raio * 0.8, alvoY + agente.raio * entre(-0.1, 0.95)];
+  const perpendicularX = -(fim[1] - inicio[1]), perpendicularY = fim[0] - inicio[0];
+  const curvatura1 = entre(-0.4, 0.4), curvatura2 = entre(-0.4, 0.4);
+  const controle1 = [inicio[0] + (fim[0] - inicio[0]) * 0.33 + perpendicularX * curvatura1, inicio[1] + (fim[1] - inicio[1]) * 0.33 + perpendicularY * curvatura1];
+  const controle2 = [inicio[0] + (fim[0] - inicio[0]) * 0.66 + perpendicularX * curvatura2, inicio[1] + (fim[1] - inicio[1]) * 0.66 + perpendicularY * curvatura2];
+  return { pontos: [inicio, controle1, controle2, fim], opacidade: entre(0.14, 0.5) * (terminaNaBorda ? 0.85 : 1), espessura: entre(0.6, 2.1),
+    faiscas: Array.from({ length: 3 }, () => ({ fase: aleatorio(), velocidade: entre(0.05, 0.16), cor: aleatorio() < 0.5 ? ouro : branco })) };
+}
+
+// ======================= CAMADAS =======================
+function desenharFundo(contexto, tempo) {
+  const [centroX, centroY] = layout.nucleo.centro, alcance = Math.max(largura, altura);
+  if (embutido) { // só a luz do núcleo: o resto do fundo é o da página
+    contexto.clearRect(0, 0, largura, altura);
+    contexto.globalCompositeOperation = "lighter";
+    desenharBrilhoRadial(contexto, centroX, centroY, layout.nucleo.raio * 2.4, azul, 0.2);
+    desenharBrilhoRadial(contexto, centroX, centroY, alcance * 0.4, [20, 80, 210], 0.1);
+    contexto.globalCompositeOperation = "source-over";
+    return;
+  }
+  const base = contexto.createLinearGradient(0, 0, 0, altura);
+  base.addColorStop(0, "#010720"); base.addColorStop(0.5, "#031238"); base.addColorStop(1, "#020c2c");
+  contexto.fillStyle = base; contexto.fillRect(0, 0, largura, altura);
+  contexto.globalCompositeOperation = "lighter";
+  desenharBrilhoRadial(contexto, centroX, centroY, alcance * 0.6, [20, 80, 210], 0.17);
+  desenharBrilhoRadial(contexto, centroX, centroY, layout.nucleo.raio * 2.2, azul, 0.2);
+  desenharBrilhoRadial(contexto, largura * 0.12, altura * 0.3, alcance * 0.36, [20, 60, 170], 0.1);
+  desenharBrilhoRadial(contexto, largura * 0.9, altura * 0.62, alcance * 0.32, [20, 70, 180], 0.1);
+  desenharCorrentesDeDados(contexto, tempo);
+  contexto.lineWidth = 1;
+  for (const circuito of layout.circuitos) {
+    contexto.strokeStyle = corRgba(circuito.cor, circuito.opacidade); contexto.beginPath();
+    circuito.pontos.forEach(([x, y], ordem) => (ordem ? contexto.lineTo(x, y) : contexto.moveTo(x, y))); contexto.stroke();
+    const [pontaX, pontaY] = circuito.pontos[circuito.pontos.length - 1];
+    desenharBrilhoRadial(contexto, pontaX, pontaY, 6 * layout.unidade, circuito.cor, 0.7);
+  }
+  for (const grao of layout.poeira) {
+    const cintilacao = 0.6 + 0.4 * Math.sin(tempo * 1.7 + grao.x * 0.05 + grao.y * 0.03);
+    contexto.fillStyle = corRgba(grao.cor, grao.brilho * cintilacao * 0.8);
+    contexto.fillRect(grao.x, grao.y, grao.tamanho, grao.tamanho);
+  }
+  contexto.globalCompositeOperation = "source-over";
+}
+
+function desenharCorrentesDeDados(contexto, tempo) {
+  for (const corrente of layout.correntesDeDados) {
+    const gradiente = contexto.createLinearGradient(0, 0, 0, corrente.comprimento);
+    gradiente.addColorStop(0, corRgba(ciano, corrente.brilho)); gradiente.addColorStop(1, corRgba(ciano, 0));
+    contexto.fillStyle = gradiente; contexto.fillRect(corrente.x, 0, 1, corrente.comprimento);
+    const cabeca = ((corrente.fase + tempo * corrente.velocidade) % 1) * corrente.comprimento;
+    contexto.fillStyle = corRgba(branco, corrente.brilho * 2.2); contexto.fillRect(corrente.x - 0.5, cabeca, 2, 2);
+  }
+}
+
+function desenharChao(contexto, tempo) {
+  const { unidade, disposicao, ponto, nucleo } = layout;
+  const horizonteY = ponto([0, disposicao.horizonteY])[1], pontoDeFugaX = nucleo.centro[0];
+  contexto.save(); contexto.globalCompositeOperation = "lighter";
+  const [neblinaX, neblinaY] = ponto([disposicao.largura / 2, disposicao.horizonteY + 78]);
+  contexto.save(); contexto.translate(neblinaX, neblinaY); contexto.scale(1, 0.2);
+  desenharBrilhoRadial(contexto, 0, 0, largura * 0.5, [40, 120, 255], 0.26); contexto.restore();
+  // coluna de luz descendo do núcleo até o chão
+  const baseDaColuna = nucleo.centro[1] + nucleo.raio, alturaDaColuna = neblinaY - baseDaColuna;
+  for (let fatia = 0; fatia < 30; fatia++) {
+    const gradiente = contexto.createLinearGradient(pontoDeFugaX - 40 * unidade, 0, pontoDeFugaX + 40 * unidade, 0);
+    gradiente.addColorStop(0, corRgba(ciano, 0)); gradiente.addColorStop(0.5, corRgba(ciano, 0.32 * (1 - fatia / 30) ** 1.6)); gradiente.addColorStop(1, corRgba(ciano, 0));
+    contexto.fillStyle = gradiente; contexto.fillRect(pontoDeFugaX - 40 * unidade, baseDaColuna + (alturaDaColuna * fatia) / 30, 80 * unidade, alturaDaColuna / 30 + 1);
+  }
+  contexto.lineWidth = 1;
+  for (let indice = -30; indice <= 30; indice++) {
+    const gradiente = contexto.createLinearGradient(0, horizonteY, 0, altura);
+    gradiente.addColorStop(0, corRgba(ciano, 0)); gradiente.addColorStop(1, corRgba(ciano, 0.2));
+    contexto.strokeStyle = gradiente;
+    contexto.beginPath(); contexto.moveTo(pontoDeFugaX + indice * largura * 0.004, horizonteY); contexto.lineTo(pontoDeFugaX + indice * largura * 0.055, altura); contexto.stroke();
+  }
+  for (let indice = 1; indice < 20; indice++) {
+    const profundidade = indice / 20, y = horizonteY + (altura - horizonteY) * profundidade ** 2.1;
+    contexto.strokeStyle = corRgba(ciano, 0.17 * profundidade + 0.03);
+    contexto.beginPath(); contexto.moveTo(0, y); contexto.lineTo(largura, y); contexto.stroke();
+  }
+  for (const estrela of layout.estrelasDoChao) {
+    contexto.fillStyle = corRgba(estrela.cor, estrela.brilho * (0.6 + 0.4 * Math.sin(tempo * 2 + estrela.x)));
+    contexto.fillRect(estrela.x, estrela.y, estrela.tamanho, estrela.tamanho);
+  }
+  for (const [x, y, tamanho, dourado] of disposicao.cubos) {
+    const [posX, posY] = ponto([x, y]);
+    desenharCuboIsometrico(contexto, { x: posX, y: posY, tamanho: tamanho * unidade, cor: dourado ? ouro : ciano, preenchido: true });
+  }
+  for (const [x, y, tamanho] of disposicao.cubosFlutuantes) {
+    const [posX, posY] = ponto([x, y]);
+    desenharCuboIsometrico(contexto, { x: posX, y: posY + Math.sin(tempo + x) * 3 * unidade, tamanho: tamanho * unidade, cor: ciano, preenchido: false });
+  }
+  contexto.restore();
+}
+
+function desenharCuboIsometrico(contexto, { x, y, tamanho, cor, preenchido }) {
+  const meio = tamanho * 0.5, quarto = tamanho * 0.29;
+  const faces = [
+    [[x, y - meio], [x + meio, y - meio + quarto], [x, y - meio + quarto * 2], [x - meio, y - meio + quarto]],
+    [[x - meio, y - meio + quarto], [x, y - meio + quarto * 2], [x, y + meio], [x - meio, y + meio - quarto]],
+    [[x + meio, y - meio + quarto], [x, y - meio + quarto * 2], [x, y + meio], [x + meio, y + meio - quarto]],
+  ];
+  faces.forEach((face, indice) => {
+    contexto.beginPath(); face.forEach(([px, py], ordem) => (ordem ? contexto.lineTo(px, py) : contexto.moveTo(px, py))); contexto.closePath();
+    if (preenchido) { contexto.fillStyle = corRgba(cor, [0.5, 0.2, 0.32][indice]); contexto.fill(); }
+    contexto.strokeStyle = corRgba(cor, 0.7); contexto.lineWidth = 1; contexto.stroke();
+  });
+  desenharBrilhoRadial(contexto, x, y, tamanho * 1.8, cor, preenchido ? 0.26 : 0.1);
+}
+
+function desenharFeixesDosSatelites(contexto) {
+  const abertura = 24 * layout.unidade;
+  contexto.save(); contexto.globalCompositeOperation = "lighter";
+  layout.satelites.forEach((satelite, indice) => {
+    if (!satelite.feixe) return;
+    const quente = calorDe(`s${indice}`);
+    const [origemX, origemY] = satelite.centro, [destinoX, destinoY] = satelite.feixe;
+    const comprimento = Math.hypot(destinoX - origemX, destinoY - origemY);
+    const normalX = -(destinoY - origemY) / comprimento, normalY = (destinoX - origemX) / comprimento;
+    const gradiente = contexto.createLinearGradient(origemX, origemY, destinoX, destinoY);
+    gradiente.addColorStop(0, corRgba(branco, 0.6 + 0.35 * quente)); gradiente.addColorStop(0.5, corRgba(ciano, 0.3 + 0.35 * quente)); gradiente.addColorStop(1, corRgba(ciano, 0.07 + 0.2 * quente));
+    const cantoA = [destinoX + normalX * abertura, destinoY + normalY * abertura], cantoB = [destinoX - normalX * abertura, destinoY - normalY * abertura];
+    contexto.fillStyle = gradiente; contexto.beginPath(); contexto.moveTo(origemX, origemY); contexto.lineTo(...cantoA); contexto.lineTo(...cantoB); contexto.closePath(); contexto.fill();
+    contexto.strokeStyle = corRgba(branco, 0.28); contexto.lineWidth = 1;
+    contexto.beginPath(); contexto.moveTo(origemX, origemY); contexto.lineTo(...cantoA); contexto.moveTo(origemX, origemY); contexto.lineTo(...cantoB); contexto.stroke();
+  });
+  contexto.restore();
+}
+
+function desenharFilamentos(contexto, tempo) {
+  contexto.save(); contexto.globalCompositeOperation = "lighter"; contexto.lineCap = "round";
+  for (const filamento of layout.filamentos) {
+    const [p0, p1, p2, p3] = filamento.pontos;
+    const quente = calorDe(filamento.chave); // a bolha em hover acende seus filamentos; os demais escurecem
+    const brilho = (1 + 1.8 * quente) * (1 - 0.5 * calorGeral * (1 - quente));
+    contexto.strokeStyle = corRgba(quente > 0.05 ? branco : ciano, Math.min(1, filamento.opacidade * brilho)); contexto.lineWidth = filamento.espessura * (1 + 0.6 * quente);
+    contexto.beginPath(); contexto.moveTo(...p0); contexto.bezierCurveTo(...p1, ...p2, ...p3); contexto.stroke();
+    for (const faisca of filamento.faiscas) {
+      const progresso = (faisca.fase + tempo * faisca.velocidade * (1 + 2.5 * quente)) % 1, [x, y] = pontoNaCurvaCubica(p0, p1, p2, p3, progresso), intensidade = Math.sin(progresso * Math.PI);
+      desenharBrilhoRadial(contexto, x, y, 10 * layout.unidade * intensidade * (1 + 0.6 * quente), faisca.cor, 0.6 * Math.min(1.4, brilho));
+      contexto.fillStyle = corRgba(branco, intensidade); contexto.beginPath(); contexto.arc(x, y, 1.5 * layout.unidade * intensidade + 0.3, 0, Math.PI * 2); contexto.fill();
+    }
+  }
+  contexto.restore();
+}
+
+function desenharNucleo(contexto, tempo) {
+  const [centroX, centroY] = layout.nucleo.centro, raio = layout.nucleo.raio, unidade = layout.unidade;
+  const rotacaoY = tempo * 0.1, inclinacaoX = 0.38;
+  const projetados = pontosDaEsfera.map(([x, y, z]) => {
+    const xGirado = x * Math.cos(rotacaoY) + z * Math.sin(rotacaoY), zGirado = -x * Math.sin(rotacaoY) + z * Math.cos(rotacaoY);
+    const yInclinado = y * Math.cos(inclinacaoX) - zGirado * Math.sin(inclinacaoX), zFinal = y * Math.sin(inclinacaoX) + zGirado * Math.cos(inclinacaoX);
+    const perspectiva = 1 / (1.9 - zFinal * 0.35);
+    return [centroX + xGirado * raio * perspectiva * 1.7, centroY + yInclinado * raio * perspectiva * 1.7, (zFinal + 1) / 2];
+  });
+  contexto.save(); contexto.globalCompositeOperation = "lighter";
+  desenharBrilhoRadial(contexto, centroX, centroY, raio * 1.8, azul, 0.22);
+  contexto.restore();
+  // corpo de vidro: azul claro por dentro, borda de Fresnel brilhante
+  const corpo = contexto.createRadialGradient(centroX, centroY, raio * 0.1, centroX, centroY, raio);
+  corpo.addColorStop(0, "rgba(30,100,235,0.34)"); corpo.addColorStop(0.7, "rgba(14,56,180,0.4)");
+  corpo.addColorStop(0.93, "rgba(120,205,255,0.62)"); corpo.addColorStop(0.985, "rgba(190,240,255,0.95)"); corpo.addColorStop(1, "rgba(150,225,255,0)");
+  contexto.fillStyle = corpo; contexto.beginPath(); contexto.arc(centroX, centroY, raio, 0, Math.PI * 2); contexto.fill();
+  // sombra suave sob o texto para garantir contraste
+  const sombra = contexto.createRadialGradient(centroX, centroY, 0, centroX, centroY, raio * 0.78);
+  sombra.addColorStop(0, "rgba(2,16,70,0.55)"); sombra.addColorStop(1, "rgba(2,16,70,0)");
+  contexto.fillStyle = sombra; contexto.beginPath(); contexto.arc(centroX, centroY, raio * 0.78, 0, Math.PI * 2); contexto.fill();
+
+  contexto.save(); contexto.globalCompositeOperation = "lighter"; contexto.lineWidth = 0.7;
+  for (const [indiceA, indiceB] of ligacoesDaEsfera) {
+    const a = projetados[indiceA], b = projetados[indiceB], profundidade = (a[2] + b[2]) / 2;
+    contexto.strokeStyle = corRgba(profundidade > 0.55 ? branco : ciano, 0.04 + profundidade * 0.3);
+    contexto.beginPath(); contexto.moveTo(a[0], a[1]); contexto.lineTo(b[0], b[1]); contexto.stroke();
+  }
+  for (const [x, y, profundidade] of projetados) {
+    contexto.fillStyle = corRgba(profundidade > 0.72 ? ouro : branco, 0.22 + profundidade * 0.7);
+    contexto.beginPath(); contexto.arc(x, y, (0.5 + profundidade * 1.6) * unidade, 0, Math.PI * 2); contexto.fill();
+  }
+  for (const indice of nosDeDestaque) { // nós-hub dourados com brilho próprio
+    const [x, y, profundidade] = projetados[indice];
+    if (profundidade > 0.45) desenharBrilhoRadial(contexto, x, y, (7 + 6 * profundidade) * unidade, ouro, 0.55 * profundidade);
+  }
+  for (const [raioDoAnel, opacidade, espessura] of [[1, 0.6, 1.6], [1.045, 0.2, 1], [0.985, 0.3, 3]]) {
+    contexto.strokeStyle = corRgba(branco, opacidade); contexto.lineWidth = espessura * unidade;
+    contexto.beginPath(); contexto.arc(centroX, centroY, raio * raioDoAnel, 0, Math.PI * 2); contexto.stroke();
+  }
+  const brilhoEspecular = contexto.createRadialGradient(centroX - raio * 0.4, centroY - raio * 0.5, 0, centroX - raio * 0.4, centroY - raio * 0.5, raio * 0.5);
+  brilhoEspecular.addColorStop(0, "rgba(255,255,255,0.22)"); brilhoEspecular.addColorStop(1, "rgba(255,255,255,0)");
+  contexto.fillStyle = brilhoEspecular; contexto.beginPath(); contexto.arc(centroX, centroY, raio, 0, Math.PI * 2); contexto.fill();
+  contexto.restore();
+}
+
+function desenharPlataforma(contexto, x, y, raioX, tempo, indice, quente = 0) {
+  const raioY = raioX * layout.disposicao.razaoDaPlataforma;
+  contexto.save(); contexto.translate(x, y); contexto.scale(1, raioY / raioX); // fundo escuro sob o texto: leitura sempre clara
+  const fundoDoTexto = contexto.createRadialGradient(0, 0, 0, 0, 0, raioX * 1.05);
+  fundoDoTexto.addColorStop(0, "rgba(2,10,45,0.62)"); fundoDoTexto.addColorStop(0.75, "rgba(2,10,45,0.45)"); fundoDoTexto.addColorStop(1, "rgba(2,10,45,0)");
+  contexto.fillStyle = fundoDoTexto; contexto.beginPath(); contexto.arc(0, 0, raioX * 1.05, 0, Math.PI * 2); contexto.fill(); contexto.restore();
+  contexto.save(); contexto.globalCompositeOperation = "lighter";
+  contexto.save(); contexto.translate(x, y); contexto.scale(1, raioY / raioX);
+  const piscina = contexto.createRadialGradient(0, 0, 0, 0, 0, raioX * 1.1);
+  piscina.addColorStop(0, corRgba(azul, 0.2 + 0.3 * quente)); piscina.addColorStop(0.65, corRgba(azul, 0.08 + 0.12 * quente)); piscina.addColorStop(1, corRgba(azul, 0));
+  contexto.fillStyle = piscina; contexto.beginPath(); contexto.arc(0, 0, raioX * 1.1, 0, Math.PI * 2); contexto.fill(); contexto.restore();
+  for (let anel = 0; anel < 3; anel++) {
+    const fator = 1 + anel * layout.disposicao.passoDosAneis;
+    contexto.strokeStyle = corRgba(ciano, Math.min(1, 0.55 - anel * 0.15 + 0.35 * quente)); contexto.lineWidth = (anel === 0 ? 1.8 : 1) * layout.unidade * (1 + 0.5 * quente);
+    contexto.beginPath(); contexto.ellipse(x, y, raioX * fator, raioY * fator, 0, 0, Math.PI * 2); contexto.stroke();
+    const inicio = tempo * (0.55 - anel * 0.12) * (1 + 2 * quente) + anel * 2 + indice * 1.3;
+    contexto.strokeStyle = corRgba(anel === 1 ? ouro : branco, 0.8); contexto.lineWidth = 2.2 * layout.unidade;
+    contexto.beginPath(); contexto.ellipse(x, y, raioX * fator, raioY * fator, 0, inicio, inicio + 0.75); contexto.stroke();
+  }
+  contexto.restore();
+}
+
+function desenharBolhaDeVidro(contexto, x, y, raioBase, quente = 0, tempo = 0) {
+  const raio = raioBase * (1 + 0.12 * quente);
+  if (layout.retrato) { // fundo escuro: nada que passe por trás (filamentos, brilhos) ofusca o ícone
+    contexto.fillStyle = "rgba(4,14,62,0.9)"; contexto.beginPath(); contexto.arc(x, y, raio, 0, Math.PI * 2); contexto.fill();
+  }
+  const corpo = contexto.createRadialGradient(x, y + raio * 0.12, raio * 0.1, x, y, raio);
+  corpo.addColorStop(0, "rgba(70,150,255,0.42)"); corpo.addColorStop(0.7, "rgba(10,40,120,0.55)");
+  corpo.addColorStop(0.93, "rgba(160,228,255,0.85)"); corpo.addColorStop(1, "rgba(160,228,255,0)");
+  contexto.fillStyle = corpo; contexto.beginPath(); contexto.arc(x, y, raio, 0, Math.PI * 2); contexto.fill();
+  contexto.save(); contexto.globalCompositeOperation = "lighter";
+  const reflexo = contexto.createRadialGradient(x - raio * 0.38, y - raio * 0.5, 0, x - raio * 0.38, y - raio * 0.5, raio * 0.55);
+  reflexo.addColorStop(0, "rgba(255,255,255,0.5)"); reflexo.addColorStop(1, "rgba(255,255,255,0)");
+  contexto.fillStyle = reflexo; contexto.beginPath(); contexto.arc(x, y, raio, 0, Math.PI * 2); contexto.fill();
+  contexto.strokeStyle = corRgba(branco, 0.45); contexto.lineWidth = 1.2 * layout.unidade; contexto.beginPath(); contexto.arc(x, y, raio * 0.98, 0, Math.PI * 2); contexto.stroke();
+  desenharBrilhoRadial(contexto, x, y, raio * 1.4, ciano, 0.22);
+  if (quente > 0.01) { // hover: aro dourado, ondas que se expandem e halo
+    contexto.strokeStyle = corRgba(ouro, 0.9 * quente); contexto.lineWidth = 2 * layout.unidade; contexto.beginPath(); contexto.arc(x, y, raio * 1.03, 0, Math.PI * 2); contexto.stroke();
+    for (const defasagem of [0, 0.5]) {
+      const fase = (tempo * 0.9 + defasagem) % 1;
+      contexto.strokeStyle = corRgba(branco, (1 - fase) * 0.55 * quente); contexto.lineWidth = 1.4 * layout.unidade;
+      contexto.beginPath(); contexto.arc(x, y, raio * (1.06 + fase * 0.85), 0, Math.PI * 2); contexto.stroke();
+    }
+    desenharBrilhoRadial(contexto, x, y, raio * 2.3, ciano, 0.38 * quente);
+  }
+  contexto.restore();
+}
+
+function desenharLinhasDeCircuitoDosSatelites(contexto) {
+  if (layout.retrato) return; // na vertical as linhas invadiriam a esfera
+  contexto.save(); contexto.globalCompositeOperation = "lighter"; contexto.lineWidth = 1;
+  for (const satelite of layout.satelites) {
+    const sentido = satelite.centro[0] < layout.nucleo.centro[0] ? 1 : -1, tamanho = 70 * layout.unidade;
+    const [x, y] = satelite.centro, inicioX = x + sentido * satelite.raio * 1.5;
+    contexto.strokeStyle = corRgba(ouro, 0.4);
+    contexto.beginPath(); contexto.moveTo(inicioX, y); contexto.lineTo(inicioX + sentido * tamanho * 0.5, y); contexto.lineTo(inicioX + sentido * tamanho, y + 12 * layout.unidade); contexto.stroke();
+    desenharBrilhoRadial(contexto, inicioX + sentido * tamanho, y + 12 * layout.unidade, 5 * layout.unidade, ouro, 1);
+  }
+  contexto.restore();
+}
+
+function desenharBokeh(contexto) {
+  contexto.save(); contexto.globalCompositeOperation = "lighter";
+  for (const disco of layout.bokeh) {
+    const gradiente = contexto.createRadialGradient(disco.x, disco.y, 0, disco.x, disco.y, disco.raio);
+    gradiente.addColorStop(0, corRgba(disco.cor, disco.opacidade * 0.6)); gradiente.addColorStop(0.85, corRgba(disco.cor, disco.opacidade)); gradiente.addColorStop(1, corRgba(disco.cor, 0));
+    contexto.fillStyle = gradiente; contexto.beginPath(); contexto.arc(disco.x, disco.y, disco.raio, 0, Math.PI * 2); contexto.fill();
+  }
+  contexto.restore();
+}
+
+// ======================= PÓS-PROCESSAMENTO =======================
+function aplicarPosProcessamento(tempo) {
+  for (const [telaDoBrilho, divisor, desfoque, intensidade] of [[telaDoBrilhoProximo, 4, 2.5, 0.42], [telaDoBrilhoAmplo, 10, 6, 0.32]]) {
+    telaDoBrilho.width = Math.ceil(telaDaCena.width / divisor); telaDoBrilho.height = Math.ceil(telaDaCena.height / divisor);
+    const contextoDoBrilho = telaDoBrilho.getContext("2d");
+    contextoDoBrilho.filter = `brightness(0.75) contrast(3.2) saturate(1.3) blur(${desfoque}px)`;
+    contextoDoBrilho.drawImage(telaDaCena, 0, 0, telaDoBrilho.width, telaDoBrilho.height);
+    contextoFinal.globalCompositeOperation = "lighter"; contextoFinal.globalAlpha = intensidade;
+    contextoFinal.drawImage(telaDoBrilho, 0, 0, tela.width, tela.height);
+  }
+  contextoFinal.globalAlpha = 1; contextoFinal.globalCompositeOperation = "source-over";
+  if (embutido) return; // sem vinheta nem grão: a página já tem os dela
+  const vinheta = contextoFinal.createRadialGradient(tela.width / 2, tela.height / 2, Math.min(tela.width, tela.height) * 0.4, tela.width / 2, tela.height / 2, Math.max(tela.width, tela.height) * 0.78);
+  vinheta.addColorStop(0, "rgba(0,0,0,0)"); vinheta.addColorStop(1, "rgba(0,0,10,0.55)");
+  contextoFinal.fillStyle = vinheta; contextoFinal.fillRect(0, 0, tela.width, tela.height);
+  contextoFinal.globalAlpha = 0.05; contextoFinal.globalCompositeOperation = "overlay";
+  const deslocamento = Math.floor(tempo * 60) % 64;
+  contextoFinal.fillStyle = contextoFinal.createPattern(telaDeGrao, "repeat");
+  contextoFinal.save(); contextoFinal.translate(-deslocamento, -deslocamento * 1.7);
+  contextoFinal.fillRect(0, 0, tela.width + 128, tela.height + 128); contextoFinal.restore();
+  contextoFinal.globalAlpha = 1; contextoFinal.globalCompositeOperation = "source-over";
+}
+
+function criarTexturaDeGrao() {
+  telaDeGrao.width = telaDeGrao.height = 256;
+  const contexto = telaDeGrao.getContext("2d"), imagem = contexto.createImageData(256, 256);
+  for (let indice = 0; indice < imagem.data.length; indice += 4) {
+    const valor = aleatorio() * 255; imagem.data[indice] = imagem.data[indice + 1] = imagem.data[indice + 2] = valor; imagem.data[indice + 3] = 255;
+  }
+  contexto.putImageData(imagem, 0, 0);
+}
+
+// ======================= TEXTO EM HTML =======================
+function montarTextos() {
+  const { marca, legenda, nucleo, agentes } = configuracaoDaCena;
+  document.getElementById("descricao-cena").textContent =
+    `Ilustração: o agente ${nucleo.titulo} no centro, ligado a ${agentes.map((agente) => agente.nome).join(", ")}.`;
+  document.title = `${marca} · ${legenda}`;
+}
+
+function posicionarTextos() {
+  const { nucleo } = configuracaoDaCena;
+  const camada = document.getElementById("camada-de-texto"); camada.innerHTML = "";
+  document.documentElement.style.setProperty("--u", `${layout.unidade}px`);
+  const criarElemento = (classes, html, [x, y], extra = {}) => {
+    const elemento = document.createElement("div"); elemento.className = classes; elemento.innerHTML = html;
+    Object.assign(elemento.style, { left: `${x}px`, top: `${y}px` }, extra); camada.appendChild(elemento); return elemento;
+  };
+  const svg = (icone) => `<svg viewBox="0 0 24 24">${iconesSvg[icone]}</svg>`;
+  const { disposicao, ponto, unidade } = layout;
+  for (const chave of Object.keys(elementosPorChave)) delete elementosPorChave[chave];
+  const rotuloDoStatus = { mvp: "Disponível no teste", breve: "Em breve" };
+  // cada bolha: ícone, rótulo, área de hover (botão sobre a bolha + área sobre o rótulo) e cartão de detalhes
+  const montarBolha = (chave, item, lado, classeDoRotulo, htmlDoRotulo, areaDoRotulo) => {
+    const icone = criarElemento("texto icone", svg(item.icone), item.centro, { width: `${lado}px`, height: `${lado}px` });
+    const rotulo = criarElemento(classeDoRotulo, htmlDoRotulo, item.rotulo);
+    const botao = document.createElement("button");
+    botao.type = "button"; botao.className = "alvo"; botao.dataset.chave = chave;
+    botao.setAttribute("aria-label", `${item.nome}: ver detalhes`); botao.setAttribute("aria-expanded", "false"); botao.setAttribute("aria-describedby", `cartao-${chave}`);
+    Object.assign(botao.style, { left: `${item.centro[0]}px`, top: `${item.centro[1]}px`, width: `${item.raio * 2.3}px`, height: `${item.raio * 2.3}px` });
+    const zona = document.createElement("div");
+    zona.className = "alvo retangulo"; zona.dataset.chave = chave; zona.setAttribute("aria-hidden", "true");
+    Object.assign(zona.style, { left: `${item.rotulo[0]}px`, top: `${item.rotulo[1]}px`, width: `${areaDoRotulo[0]}px`, height: `${areaDoRotulo[1]}px`, borderRadius: areaDoRotulo[2] });
+    const detalhe = detalhes[chave];
+    const cartao = document.createElement("div");
+    cartao.className = "cartao"; cartao.id = `cartao-${chave}`; cartao.setAttribute("role", "tooltip");
+    cartao.innerHTML = `<span class="chip ${detalhe.status}">${rotuloDoStatus[detalhe.status]}</span><h3>${item.nome}</h3><p class="curto">${detalhe.curto}</p><ul>${detalhe.pontos.map((ponto) => `<li>${ponto}</li>`).join("")}</ul>`;
+    camada.append(zona, botao, cartao);
+    elementosPorChave[chave] = { icone, rotulo, botao, cartao, centro: item.centro, raio: item.raio, nome: item.nome };
+    calor[chave] ??= 0;
+  };
+  layout.agentes.forEach((agente, indice) => montarBolha(`a${indice}`, agente, agente.raio * 1.08, "texto rotulo",
+    `<div class="nome">${agente.nome}</div><div class="verbos">${agente.verbos.join("<br>")}</div>`,
+    [layout.disposicao.raioDaPlataforma * unidade * 2.2, layout.disposicao.raioDaPlataforma * unidade * layout.disposicao.razaoDaPlataforma * 2.6, "50%"]));
+  layout.satelites.forEach((satelite, indice) => montarBolha(`s${indice}`, satelite, satelite.raio * 1.1, "texto rotulo satelite", satelite.nome,
+    [(layout.retrato ? 92 : 104) * unidade, 38 * unidade, "10px"]));
+  criarElemento("texto", `<strong>${nucleo.titulo}</strong>${nucleo.linhas.map((linha) => `<span>${linha}</span>`).join("")}`,
+    ponto([disposicao.nucleo.x, disposicao.nucleo.textoY]), { transform: "translate(-50%, -50%)" }).id = "nucleo-texto";
+}
+
+// ======================= HOVER DAS BOLHAS =======================
+const calor = {};                 // chave -> 0..1, suavizado a cada quadro (alimenta os efeitos do canvas)
+const elementosPorChave = {};     // chave -> { icone, rotulo, botao, cartao, centro, raio }
+let focoAtual = null;             // chave da bolha em destaque
+let calorGeral = 0;               // o maior calor: quando algo está em foco, o resto escurece
+let ligacaoDoCartao = null;       // linha tracejada da bolha até o cartão
+let redesenharParado = null;      // quando a cena é estática (movimento reduzido), o hover redesenha na hora
+const calorDe = (chave) => calor[chave] ?? 0;
+
+function suavizarCalor() {
+  calorGeral = 0;
+  for (const chave of Object.keys(calor)) {
+    const alvo = chave === focoAtual ? 1 : 0;
+    calor[chave] = redesenharParado ? alvo : calor[chave] + (alvo - calor[chave]) * 0.18;
+    if (Math.abs(calor[chave] - alvo) < 0.005) calor[chave] = alvo;
+    calorGeral = Math.max(calorGeral, calor[chave]);
+  }
+}
+
+function posicionarCartao(chave) {
+  const { cartao, centro: [cx, cy], raio: raioBase } = elementosPorChave[chave];
+  const folga = 16 * layout.unidade, margem = 8, raio = raioBase * 1.15;
+  const larguraDoCartao = cartao.offsetWidth, alturaDoCartao = cartao.offsetHeight;
+  // candidatos: 4 lados x 3 alinhamentos (centralizado, rente ao início, rente ao fim)
+  const alinhamentos = [0.5, 0.12, 0.88];
+  const candidatos = [];
+  for (const lado of cx < largura / 2 ? ["direita", "abaixo", "acima", "esquerda"] : ["esquerda", "abaixo", "acima", "direita"]) {
+    for (const alinhamento of alinhamentos) {
+      const x = lado === "direita" ? cx + raio + folga : lado === "esquerda" ? cx - raio - folga - larguraDoCartao : cx - larguraDoCartao * alinhamento;
+      const y = lado === "abaixo" ? cy + raio + folga : lado === "acima" ? cy - raio - folga - alturaDoCartao : cy - alturaDoCartao * alinhamento;
+      candidatos.push([x, y]);
+    }
+  }
+  const cabe = ([x, y]) => x >= margem && y >= margem && x + larguraDoCartao <= largura - margem && y + alturaDoCartao <= altura - margem;
+  // entre as posições que cabem, vence a que cobre menos coisa (outras bolhas, rótulos e o núcleo)
+  const obstaculos = [];
+  for (const [outraChave, elementos] of Object.entries(elementosPorChave)) {
+    for (const parte of [elementos.icone, elementos.rotulo]) {
+      const caixa = parte.getBoundingClientRect();
+      obstaculos.push({ x: caixa.left, y: caixa.top, w: caixa.width, h: caixa.height, peso: outraChave !== chave ? (parte === elementos.icone ? 9 : 1.5) : parte === elementos.icone ? 14 : 1 });
+    }
+  }
+  const [nucleoX, nucleoY] = layout.nucleo.centro, nucleoR = layout.nucleo.raio * 0.8;
+  obstaculos.push({ x: nucleoX - nucleoR, y: nucleoY - nucleoR, w: nucleoR * 2, h: nucleoR * 2, peso: 0.6 });
+  const sobreposicao = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  const custo = ([x, y]) => obstaculos.reduce((soma, obstaculo) => soma + obstaculo.peso * sobreposicao({ x, y, w: larguraDoCartao, h: alturaDoCartao }, obstaculo), 0);
+  const cabem = candidatos.filter(cabe);
+  const escolhido = (cabem.length ? cabem : candidatos.slice(0, 1)).reduce((melhor, candidato) => (custo(candidato) < custo(melhor) - 1 ? candidato : melhor));
+  const x = Math.min(Math.max(escolhido[0], margem), Math.max(margem, largura - larguraDoCartao - margem));
+  const y = Math.min(Math.max(escolhido[1], margem), Math.max(margem, altura - alturaDoCartao - margem));
+  Object.assign(cartao.style, { left: `${x}px`, top: `${y}px` });
+  ligacaoDoCartao = { chave, de: [cx, cy], para: [Math.min(Math.max(cx, x), x + larguraDoCartao), Math.min(Math.max(cy, y), y + alturaDoCartao)], raio };
+}
+
+function definirFoco(chave) {
+  if (chave === focoAtual) return;
+  focoAtual = chave;
+  document.documentElement.classList.toggle("com-foco", chave !== null);
+  for (const [outraChave, elementos] of Object.entries(elementosPorChave)) {
+    const ativa = outraChave === chave;
+    elementos.icone.classList.toggle("quente", ativa);
+    elementos.rotulo.classList.toggle("quente", ativa);
+    elementos.cartao.classList.toggle("aberto", ativa);
+    elementos.botao.setAttribute("aria-expanded", String(ativa));
+  }
+  if (chave) posicionarCartao(chave);
+  if (redesenharParado) redesenharParado();
+}
+
+function desenharLigacaoDoCartao(contexto, tempo) {
+  if (!ligacaoDoCartao) return;
+  const quente = calorDe(ligacaoDoCartao.chave);
+  if (quente < 0.02) return;
+  const { de: [x1, y1], para: [x2, y2], raio } = ligacaoDoCartao, angulo = Math.atan2(y2 - y1, x2 - x1);
+  const inicioX = x1 + Math.cos(angulo) * raio, inicioY = y1 + Math.sin(angulo) * raio;
+  contexto.save(); contexto.globalCompositeOperation = "lighter";
+  const gradiente = contexto.createLinearGradient(inicioX, inicioY, x2, y2);
+  gradiente.addColorStop(0, corRgba(ouro, 0.9 * quente)); gradiente.addColorStop(1, corRgba(ciano, 0.9 * quente));
+  contexto.strokeStyle = gradiente; contexto.lineWidth = 1.5 * layout.unidade; contexto.setLineDash([5 * layout.unidade, 5 * layout.unidade]); contexto.lineDashOffset = -tempo * 28;
+  contexto.beginPath(); contexto.moveTo(inicioX, inicioY); contexto.lineTo(x2, y2); contexto.stroke(); contexto.setLineDash([]);
+  desenharBrilhoRadial(contexto, x2, y2, 12 * layout.unidade, branco, 0.9 * quente);
+  contexto.restore();
+}
+
+// Dentro da página (iframe), o clique numa bolha do agente pede para a página aproximar a câmera e abrir o holograma.
+// Devolve false quando a cena está sozinha (sem página por cima): aí vale só o cartão de hover.
+function abrirHolograma(chave) {
+  if (window.parent === window) return false;
+  const bolha = elementosPorChave[chave];
+  if (!bolha) return false;
+  window.parent.postMessage({ tipo: "nexa-abrir", chave, nome: bolha.nome, x: bolha.centro[0], y: bolha.centro[1], raio: bolha.raio, largura, altura }, location.origin);
+  definirFoco(null);
+  return true;
+}
+window.addEventListener("message", (evento) => {
+  if (evento.origin === location.origin && evento.data && evento.data.tipo === "nexa-limpar") definirFoco(null);
+});
+
+function ligarEventosDeHover() {
+  const camada = document.getElementById("camada-de-texto");
+  const alvoDe = (evento) => evento.target.closest?.(".alvo");
+  // mouse: o hover abre e fecha; teclado: o foco abre; toque: o toque abre e tocar fora fecha
+  camada.addEventListener("pointerover", (evento) => { const alvo = alvoDe(evento); if (alvo && evento.pointerType === "mouse") definirFoco(alvo.dataset.chave); });
+  camada.addEventListener("pointerout", (evento) => {
+    const alvo = alvoDe(evento);
+    if (!alvo || evento.pointerType !== "mouse") return;
+    const indoPara = evento.relatedTarget?.closest?.(".alvo");
+    if (!indoPara || indoPara.dataset.chave !== alvo.dataset.chave) definirFoco(null);
+  });
+  camada.addEventListener("click", (evento) => {
+    const alvo = alvoDe(evento);
+    if (!alvo) return;
+    const chave = alvo.dataset.chave;
+    if (chave.startsWith("a") && abrirHolograma(chave)) return; // bolhas do agente: a página abre o holograma
+    if (evento.pointerType !== "mouse") definirFoco(chave);
+  });
+  camada.addEventListener("focusin", (evento) => { const alvo = alvoDe(evento); if (alvo && evento.target.matches(":focus-visible")) definirFoco(alvo.dataset.chave); });
+  camada.addEventListener("focusout", (evento) => { if (alvoDe(evento) && evento.target.matches(":focus-visible")) definirFoco(null); });
+  document.addEventListener("pointerdown", (evento) => { if (!alvoDe(evento)) definirFoco(null); });
+  document.addEventListener("keydown", (evento) => { if (evento.key === "Escape") definirFoco(null); });
+}
+
+// ======================= CICLO =======================
+function redimensionar() {
+  escalaDePixel = Math.min(window.devicePixelRatio || 1, 2); // limite de DPR protege o desempenho
+  const palco = document.getElementById("palco");
+  if (layout && palco.clientWidth === largura && palco.clientHeight === altura) return; // barra de endereço do celular: nada muda
+  largura = palco.clientWidth; altura = palco.clientHeight;
+  for (const canvas of [tela, telaDaCena]) { canvas.width = Math.round(largura * escalaDePixel); canvas.height = Math.round(altura * escalaDePixel); }
+  contextoDaCena.setTransform(escalaDePixel, 0, 0, escalaDePixel, 0, 0);
+  layout = calcularLayout();
+  document.documentElement.classList.toggle("retrato", layout.retrato);
+  focoAtual = null; ligacaoDoCartao = null; document.documentElement.classList.remove("com-foco");
+  posicionarTextos();
+}
+
+function desenharQuadro(tempo) {
+  suavizarCalor();
+  desenharFundo(contextoDaCena, tempo);
+  desenharChao(contextoDaCena, tempo);
+  if (embutido) { // piso e névoa se dissolvem nas laterais: sem borda reta contra o fundo da página
+    contextoDaCena.globalCompositeOperation = "destination-out";
+    const fade = contextoDaCena.createLinearGradient(0, 0, largura, 0);
+    fade.addColorStop(0, "rgba(0,0,0,1)"); fade.addColorStop(0.1, "rgba(0,0,0,0)"); fade.addColorStop(0.9, "rgba(0,0,0,0)"); fade.addColorStop(1, "rgba(0,0,0,1)");
+    contextoDaCena.fillStyle = fade; contextoDaCena.fillRect(0, 0, largura, altura);
+    contextoDaCena.globalCompositeOperation = "source-over";
+  }
+  desenharLinhasDeCircuitoDosSatelites(contextoDaCena);
+  desenharFeixesDosSatelites(contextoDaCena);
+  desenharFilamentos(contextoDaCena, tempo);
+  layout.agentes.forEach((agente, indice) => desenharPlataforma(contextoDaCena, agente.rotulo[0], agente.rotulo[1], layout.disposicao.raioDaPlataforma * layout.unidade, tempo, indice, calorDe(`a${indice}`)));
+  desenharNucleo(contextoDaCena, tempo);
+  layout.agentes.forEach((agente, indice) => desenharBolhaDeVidro(contextoDaCena, agente.centro[0], agente.centro[1], agente.raio, calorDe(`a${indice}`), tempo));
+  layout.satelites.forEach((satelite, indice) => desenharBolhaDeVidro(contextoDaCena, satelite.centro[0], satelite.centro[1], satelite.raio, calorDe(`s${indice}`), tempo));
+  desenharLigacaoDoCartao(contextoDaCena, tempo);
+  desenharBokeh(contextoDaCena);
+  if (embutido) contextoFinal.clearRect(0, 0, tela.width, tela.height);
+  contextoFinal.globalCompositeOperation = "source-over";
+  contextoFinal.drawImage(telaDaCena, 0, 0);
+  aplicarPosProcessamento(tempo);
+}
+
+criarTexturaDeGrao();
+montarTextos();
+redimensionar();
+ligarEventosDeHover();
+window.addEventListener("resize", redimensionar);
+
+const tempoFixo = new URLSearchParams(location.search).get("tempo");
+const movimentoReduzido = matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (tempoFixo !== null || movimentoReduzido) {
+  redesenharParado = () => desenharQuadro(Number(tempoFixo ?? 3));
+  redesenharParado();
+  window.addEventListener("resize", redesenharParado);
+  if (tempoFixo !== null) document.title = "pronto";
+} else {
+  let paginaVisivel = true;
+  document.addEventListener("visibilitychange", () => { paginaVisivel = !document.hidden; });
+  // a página que embute a cena avisa quando ela sai da tela, para economizar bateria
+  window.addEventListener("message", (evento) => {
+    if (evento.origin === location.origin && evento.data && evento.data.tipo === "visibilidade") paginaVisivel = Boolean(evento.data.visivel);
+  });
+  const animar = (instante) => { if (paginaVisivel) desenharQuadro(instante / 1000); requestAnimationFrame(animar); };
+  requestAnimationFrame(animar);
+}
+</script>
+</body>
+</html>

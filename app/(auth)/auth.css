@@ -1,0 +1,113 @@
+/* ============ Telas de acesso (login e cadastro) ============
+   Usa a linguagem do site (site.css): rede viva, painel HUD com colchetes, esfera sobre plataforma holográfica.
+   Aqui só entra o que é próprio das telas de acesso. */
+.au-root { display: flex; flex-direction: column; }
+.au-main { flex: 1; display: grid; place-items: center; padding: clamp(24px, 5vh, 56px) 16px 8px; }
+
+.au-palco {
+  width: min(1060px, 100%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+  gap: clamp(24px, 6vw, 88px); align-items: center;
+}
+
+/* ---------- lado do agente ---------- */
+.au-cena { position: relative; display: flex; flex-direction: column; align-items: center; min-height: 520px; }
+.au-cena-topo { position: relative; z-index: 2; width: 380px; height: 380px; margin-bottom: -20px; }
+.au-agente { display: block; width: 100%; height: 100%; }
+.au-feixe { --fw: 420px; left: 50%; top: 270px; bottom: 70px; height: auto; clip-path: polygon(36% 0, 64% 0, 100% 100%, 0 100%); z-index: 0; }
+.au-base { --bd: 500px; --bh: 150px; position: relative; z-index: 1; width: 100%; margin-top: -40px; }
+.au-dados-wrap { position: absolute; left: 50%; bottom: -44px; z-index: 3; translate: -50% 0; width: min(300px, 100%); }
+.au-dados { padding: 14px 18px 12px; text-align: left; font: 12px/1.75 ui-monospace, "Cascadia Mono", Consolas, monospace; color: #bfe6ff; }
+.au-dados p { margin: 0; }
+.au-dados b { color: #fff; font-weight: 600; }
+.au-resto { visibility: hidden; }
+.au-cursor { display: inline-block; width: 7px; height: 13px; margin: 0 1px; vertical-align: -2px; background: var(--c); box-shadow: 0 0 8px var(--c); animation: au-cursor 1.1s steps(1) infinite; }
+
+/* ---------- painel do formulário ---------- */
+.au-painel { display: flex; flex-direction: column; gap: 16px; padding: 38px 34px 30px; }
+.au-painel .nx-kicker { margin: 0; font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--c); text-shadow: 0 0 12px rgba(var(--h), 0.8); }
+.au-painel h1 { margin: -6px 0 0; font-size: clamp(26px, 3vw, 34px); line-height: 1.12; font-weight: 800; text-shadow: 0 0 30px rgba(var(--h), 0.5); }
+.au-sub { margin: -4px 0 4px; color: var(--mute); font-size: 14.5px; line-height: 1.5; }
+.au-aviso { margin: 0; color: var(--mute); font-size: 12px; line-height: 1.5; }
+
+.au-erro {
+  margin: 0; padding: 11px 14px; border-radius: 10px; font-size: 13.5px; line-height: 1.4; color: #ffd3da;
+  border: 1px solid rgba(255, 110, 135, 0.55); background: rgba(255, 70, 100, 0.12);
+  box-shadow: 0 0 22px rgba(255, 70, 100, 0.2), inset 0 0 18px rgba(255, 70, 100, 0.08);
+  animation: au-treme 0.4s ease both;
+}
+
+/* campos de vidro */
+.au-campo { display: flex; flex-direction: column; gap: 7px; }
+.au-rotulo { font: 600 11.5px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.18em; text-transform: uppercase; color: var(--c); }
+.au-entrada {
+  position: relative; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(var(--h), 0.32); background: rgba(2, 12, 52, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 20px rgba(var(--h), 0.05);
+  transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+}
+.au-entrada::after { /* linha de varredura que se acende ao focar */
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; transform: scaleX(0); transform-origin: 0 50%;
+  background: linear-gradient(90deg, transparent, var(--c), #fff, var(--ouro)); transition: transform 0.4s ease;
+}
+.au-entrada:focus-within { border-color: rgba(var(--h), 0.9); background: rgba(4, 22, 80, 0.7); box-shadow: 0 0 0 3px rgba(var(--h), 0.14), 0 0 26px rgba(var(--h), 0.35), inset 0 0 20px rgba(var(--h), 0.1); }
+.au-entrada:focus-within::after { transform: scaleX(1); }
+.au-icone { flex: none; width: 18px; height: 18px; color: var(--c); opacity: 0.75; filter: drop-shadow(0 0 5px rgba(var(--h), 0.7)); transition: opacity 0.25s; }
+.au-entrada:focus-within .au-icone { opacity: 1; }
+.au-entrada input { flex: 1; min-width: 0; padding: 14px 0; background: none; border: 0; outline: none; color: var(--ink); font: inherit; font-size: 15px; }
+.au-entrada input::placeholder { color: rgba(169, 196, 218, 0.5); }
+.au-entrada input:-webkit-autofill { -webkit-text-fill-color: var(--ink); caret-color: var(--ink); box-shadow: 0 0 0 40px #041a58 inset; transition: background-color 9999s; }
+.au-entrada:has(input:user-invalid) { border-color: rgba(255, 110, 135, 0.7); }
+.au-olho { flex: none; padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(var(--h), 0.35); background: none; color: var(--c); cursor: pointer; font: 600 10.5px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.14em; transition: background 0.2s, color 0.2s; }
+.au-olho:hover { background: rgba(var(--h), 0.16); color: #fff; }
+.au-dica { color: var(--mute); font-size: 12px; }
+
+.au-enviar { width: 100%; margin-top: 6px; padding: 14px 26px; }
+.au-spinner { width: 14px; height: 14px; margin-right: 8px; border-radius: 50%; border: 2px solid rgba(2, 16, 31, 0.3); border-top-color: #02101f; animation: nx-gira 0.7s linear infinite; }
+.au-troca { margin: 2px 0 0; text-align: center; color: var(--mute); font-size: 14px; }
+.au-troca a { color: var(--ouro); font-weight: 700; text-decoration: none; text-shadow: 0 0 12px rgba(243, 199, 106, 0.5); }
+.au-troca a:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+.au-rodape { padding: 10px 16px 24px; text-align: center; }
+
+/* ---------- troca entre Entrar e Criar conta: só o painel e a mensagem colapsam até o meio e o outro abre dali ----------
+   Estilo tela antiga: o painel vira uma linha de luz e depois um ponto; a abertura é o caminho inverso. */
+.au-painel-wrap { position: relative; }
+.au-painel-wrap.abre, .au-dados-wrap.abre { animation: au-colapso-abre 0.85s cubic-bezier(0.3, 0.7, 0.25, 1) backwards; }
+.au-painel-wrap.fecha, .au-dados-wrap.fecha { animation: au-colapso-fecha 0.62s cubic-bezier(0.6, 0, 0.4, 1) forwards; pointer-events: none; }
+.au-nucleo { /* a linha e o ponto de luz em que o painel se fecha */
+  position: absolute; left: 50%; top: 50%; z-index: 5; width: 22px; height: 22px; translate: -50% -50%; border-radius: 50%; opacity: 0; pointer-events: none;
+  background: #fff; box-shadow: 0 0 16px 4px rgba(150, 228, 255, 0.95), 0 0 46px 10px rgba(40, 120, 255, 0.55), 0 0 90px 18px rgba(243, 199, 106, 0.18);
+}
+.au-painel-wrap.abre > .au-nucleo, .au-dados-wrap.abre > .au-nucleo { animation: au-nucleo-abre 0.85s cubic-bezier(0.3, 0.7, 0.25, 1) backwards; }
+.au-painel-wrap.fecha > .au-nucleo, .au-dados-wrap.fecha > .au-nucleo { animation: au-nucleo-fecha 0.62s cubic-bezier(0.6, 0, 0.4, 1) forwards; }
+@keyframes au-colapso-fecha { 0% { scale: 1 1; } 55% { scale: 1 0.012; } 100% { scale: 0 0.012; } }
+@keyframes au-colapso-abre { 0% { scale: 0 0.012; } 45% { scale: 1 0.012; } 100% { scale: 1 1; } }
+@keyframes au-nucleo-fecha {
+  0%, 40% { opacity: 0; width: 100%; height: 2px; border-radius: 2px; }
+  55% { opacity: 1; width: 100%; height: 2px; border-radius: 2px; }
+  100% { opacity: 1; width: 22px; height: 22px; border-radius: 50%; }
+}
+@keyframes au-nucleo-abre {
+  0% { opacity: 1; width: 22px; height: 22px; border-radius: 50%; }
+  45% { opacity: 1; width: 100%; height: 2px; border-radius: 2px; }
+  60% { opacity: 1; width: 100%; height: 2px; border-radius: 2px; }
+  100% { opacity: 0; width: 100%; height: 2px; border-radius: 2px; }
+}
+
+@keyframes au-cursor { 50% { opacity: 0; } }
+@keyframes au-treme { 20% { translate: -6px 0; } 40% { translate: 5px 0; } 60% { translate: -3px 0; } 80% { translate: 2px 0; } }
+
+/* ---------- telas médias e celular: o agente vira um selo acima do painel ---------- */
+@media (max-width: 900px) {
+  .au-palco { grid-template-columns: minmax(0, 460px); justify-content: center; gap: 0; }
+  .au-cena { min-height: 0; order: -1; height: 230px; overflow: visible; }
+  .au-cena-topo { transform: scale(0.62); transform-origin: 50% 0; margin-bottom: 0; }
+  .au-feixe, .au-dados-wrap { display: none; }
+  .au-base { --bd: 330px; --bh: 90px; position: absolute; bottom: -20px; margin-top: 0; }
+}
+@media (max-width: 480px) {
+  .au-painel { padding: 30px 20px 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .au-painel-wrap, .au-dados-wrap, .au-nucleo, .au-erro, .au-cursor, .au-spinner { animation: none !important; }
+}
